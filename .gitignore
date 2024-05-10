@@ -1,0 +1,7 @@
+/config.yaml
+.idea
+testdata/data/
+.private/
+/app
+/dist/
+/coverage.out
