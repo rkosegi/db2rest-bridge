@@ -1,0 +1,262 @@
+# Copyright 2024 Richard Kosegi
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+openapi: 3.0.3
+info:
+  title: Database to REST API bridge
+  description: |-
+    Perform CRUD operation against database backends using REST API.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: v1.0.0
+
+servers:
+  - url: '{protocol}://{host}:{port}/api/v1'
+    variables:
+      host:
+        default: localhost
+        description: Hostname of API server.
+      port:
+        default: '22001'
+        description: Port on which API server is listening.
+      protocol:
+        default: http
+        description: The protocol for accessing the API.
+tags:
+  - name: backend
+    description: Backend related operations
+  - name: entity
+    description: Entity related operations
+  - name: crud
+    description: CRUD operations
+paths:
+  /backends:
+    get:
+      summary: List all configured backends
+      description: Get list of all configured backends
+      responses:
+        '200':
+          description: List of all configured backends
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NameList"
+      operationId: listBackends
+      tags:
+        - backend
+  /{backend}/entities:
+    get:
+      summary: List all known entities within backend
+      description: Get list of known entities within given backend
+      parameters:
+        - $ref: '#/components/parameters/backend'
+      responses:
+        '200':
+          description: List of all known entities within given backend
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NameList"
+      operationId: listEntities
+      tags:
+        - entity
+  /{backend}/{entity}:
+    parameters:
+      - $ref: '#/components/parameters/backend'
+      - $ref: '#/components/parameters/entity'
+    get:
+      operationId: listItems
+      description: List entity items using provided criteria
+      summary: List entity items
+      parameters:
+        - name: page-offset
+          in: query
+          required: false
+          description: Page offset
+          schema:
+            type: integer
+            minimum: 0
+        - name: page-size
+          in: query
+          required: false
+          description: Page size
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: order[]
+          description: |
+            List of order instructions in form of `key=direction`.
+            Key represents entity field (column) and direction is one of `ASC` or `DESC`,
+            for example `name=ASC` or `id=DESC`.
+            Direction can be omitted, in such case `ASC` is assumed.
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: filter
+          description: |
+            Filter is JSON-encoded FilterExpression.
+            Currently supported types are `simple`, `not` and `junction`.
+            Examples:
+
+            - `{"simple": { "name": "id", "op": "=", "val" : 1}}`
+
+               is equivalent to SQL `id=1`
+
+            - `{"not": { "simple": { "name": "id", "op": ">", "val" : 100}}}`
+
+               is equivalent to SQL `NOT (id>100)`
+
+            - `{"junction": {"op": "AND", "sub" : [{"simple": { "name": "age", "op": ">", "val" : 35}}, {"simple": { "name": "salary", "op": ">", "val" : 5000}}]}}`
+
+               is equivalent to SQL `(age>35) AND (salary > 5000)`
+          in: query
+          required: false
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: List of items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UntypedDto"
+      tags:
+        - crud
+    post:
+      operationId: createItem
+      summary: Create new entity item
+      requestBody:
+        description: Content of entity item to create
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UntypedDto'
+      responses:
+        '202':
+          description: Created DTO
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UntypedDto"
+        '405':
+          description: Create is not allowed.
+      tags:
+        - crud
+  /{backend}/{entity}/{id}:
+    parameters:
+      - $ref: '#/components/parameters/backend'
+      - $ref: '#/components/parameters/entity'
+      - name: id
+        in: path
+        required: true
+        description: ID of entity item
+        schema:
+          type: string
+          pattern: '[\w_-]+'
+          minLength: 1
+          maxLength: 63
+    get:
+      operationId: getItemById
+      summary: Get entity item by ID
+      responses:
+        '200':
+          description: Entity item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UntypedDto"
+        '404':
+          description: Item with given ID does not exist
+        '405':
+          description: Read is not allowed.
+      tags:
+        - crud
+    put:
+      operationId: updateItemById
+      summary: Update entity item in-place by ID
+      responses:
+        '200':
+          description: Updated entity item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UntypedDto"
+        '404':
+          description: Item with given ID does not exist
+        '405':
+          description: Update is not allowed.
+      tags:
+        - crud
+    head:
+      operationId: existsItemById
+      summary: Check for existence of entity item by ID
+      responses:
+        '204':
+          description: Item exists.
+        '404':
+          description: Item with given ID does not exist.
+        '405':
+          description: Read is not allowed.
+      tags:
+        - crud
+    delete:
+      operationId: deleteItemById
+      summary: Delete entity item by ID
+      responses:
+        '202':
+          description: Item was removed.
+        '405':
+          description: Delete is not allowed.
+      tags:
+        - crud
+components:
+  parameters:
+    backend:
+      name: backend
+      in: path
+      required: true
+      description: Name of backend to fetch entities from
+      schema:
+        type: string
+        pattern: '[\w_-]+'
+        minLength: 1
+        maxLength: 63
+    entity:
+      name: entity
+      in: path
+      required: true
+      description: Name of entity
+      schema:
+        type: string
+        pattern: '[\w_-]+'
+        minLength: 1
+        maxLength: 63
+  schemas:
+    NameList:
+      description: List of names, such as backends or entities
+      type: array
+      items:
+        type: string
+    UntypedDto:
+      description: Unstructured content, dictionary of string-to-any values.
+      type: object
+      additionalProperties: true
