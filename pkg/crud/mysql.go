@@ -74,25 +74,33 @@ func (c *bedb) fetchOneItem(entity, id string, retrieve bool) (res Untyped, err 
 	return res, nil
 }
 
-func (c *bedb) ListItems(entity string, qe query.Interface) ([]Untyped, error) {
+func (c *bedb) ListItems(entity string, qe query.Interface) (*PagedResult, error) {
 	if !*c.config.Read {
 		return nil, errReadNotAllowed
 	}
 	var (
 		cols     []string
+		cnt      int
 		colTypes []*sql.ColumnType
 		err      error
+		rows     *sql.Rows
 		res      []Untyped
 		item     Untyped
+		qry      string
 	)
 
 	res = make([]Untyped, 0)
 	if qe == nil {
 		qe = query.DefaultQuery
 	}
+	qry = c.logSQL(fmt.Sprintf("SELECT COUNT(1) FROM `%s` WHERE %s", entity, qe.Filter().String()))
+	row := c.config.DB().QueryRow(qry)
+	if err = row.Scan(&cnt); err != nil {
+		return nil, err
+	}
 
-	qry := c.logSQL(fmt.Sprintf("SELECT * FROM `%s` %s", entity, qe.String()))
-	rows, err := c.config.DB().Query(qry)
+	qry = c.logSQL(fmt.Sprintf("SELECT * FROM `%s` %s", entity, qe.String()))
+	rows, err = c.config.DB().Query(qry)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +120,11 @@ func (c *bedb) ListItems(entity string, qe query.Interface) ([]Untyped, error) {
 		res = append(res, item)
 	}
 
-	return res, nil
+	return &PagedResult{
+		Data:       res,
+		TotalCount: cnt,
+		Offset:     qe.Paging().Offset(),
+	}, nil
 }
 
 func (c *bedb) ListEntities() ([]string, error) {

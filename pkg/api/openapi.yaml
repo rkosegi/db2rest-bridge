@@ -136,9 +136,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UntypedDto"
+                $ref: "#/components/schemas/PagedResult"
       tags:
         - crud
     post:
@@ -251,6 +249,20 @@ components:
         minLength: 1
         maxLength: 63
   schemas:
+    PagedResult:
+      description: Paged list of items
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/UntypedDto"
+        total_count:
+          type: number
+          description: Total number of items matching current filter
+        offset:
+          type: number
+          description: Offset of current page from the beginning
     NameList:
       description: List of names, such as backends or entities
       type: array
