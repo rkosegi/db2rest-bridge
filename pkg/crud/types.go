@@ -27,12 +27,18 @@ import (
 
 type Untyped map[string]interface{}
 
+type PagedResult struct {
+	Data       []Untyped `json:"data"`
+	TotalCount int       `json:"total_count"`
+	Offset     uint64    `json:"offset"`
+}
+
 // Interface is API to perform CRUD operation against backend
 type Interface interface {
 	// ListEntities lists all entity types in backend (such as tables)
 	ListEntities() ([]string, error)
 	// ListItems lists items based on provided query
-	ListItems(entity string, qry query.Interface) ([]Untyped, error)
+	ListItems(entity string, qry query.Interface) (*PagedResult, error)
 	// Exists checks for existence of item based on ID
 	Exists(entity, id string) (bool, error)
 	// Get gets item based on ID

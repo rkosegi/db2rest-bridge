@@ -47,19 +47,19 @@ func (rs *restServer) ListEntities(w http.ResponseWriter, r *http.Request, backe
 func (rs *restServer) ListItems(w http.ResponseWriter, r *http.Request, backend string, entity string, params api.ListItemsParams) {
 	rs.handleEntity(w, r, backend, entity, func(c crud.Interface, entity string, writer http.ResponseWriter, request *http.Request) {
 		var (
-			err   error
-			qry   query.Interface
-			items []crud.Untyped
+			err error
+			qry query.Interface
+			res *crud.PagedResult
 		)
 		if qry, err = query.FromParams(params); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if items, err = c.ListItems(entity, qry); err != nil {
+		if res, err = c.ListItems(entity, qry); err != nil {
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		sendJson(writer, items)
+		sendJson(writer, res)
 	})
 }
 
