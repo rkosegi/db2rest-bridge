@@ -6,8 +6,11 @@ package api
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -75,6 +78,1144 @@ type ListItemsParams struct {
 
 // CreateItemJSONRequestBody defines body for CreateItem for application/json ContentType.
 type CreateItemJSONRequestBody = UntypedDto
+
+// RequestEditorFn  is the function signature for the RequestEditor callback function
+type RequestEditorFn func(ctx context.Context, req *http.Request) error
+
+// Doer performs HTTP requests.
+//
+// The standard http.Client implements this interface.
+type HttpRequestDoer interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// Client which conforms to the OpenAPI3 specification for this service.
+type Client struct {
+	// The endpoint of the server conforming to this interface, with scheme,
+	// https://api.deepmap.com for example. This can contain a path relative
+	// to the server, such as https://api.deepmap.com/dev-test, and all the
+	// paths in the swagger spec will be appended to the server.
+	Server string
+
+	// Doer for performing requests, typically a *http.Client with any
+	// customized settings, such as certificate chains.
+	Client HttpRequestDoer
+
+	// A list of callbacks for modifying requests which are generated before sending over
+	// the network.
+	RequestEditors []RequestEditorFn
+}
+
+// ClientOption allows setting custom parameters during construction
+type ClientOption func(*Client) error
+
+// Creates a new Client, with reasonable defaults
+func NewClient(server string, opts ...ClientOption) (*Client, error) {
+	// create a client with sane default values
+	client := Client{
+		Server: server,
+	}
+	// mutate client and add all optional params
+	for _, o := range opts {
+		if err := o(&client); err != nil {
+			return nil, err
+		}
+	}
+	// ensure the server URL always has a trailing slash
+	if !strings.HasSuffix(client.Server, "/") {
+		client.Server += "/"
+	}
+	// create httpClient, if not already present
+	if client.Client == nil {
+		client.Client = &http.Client{}
+	}
+	return &client, nil
+}
+
+// WithHTTPClient allows overriding the default Doer, which is
+// automatically created using http.Client. This is useful for tests.
+func WithHTTPClient(doer HttpRequestDoer) ClientOption {
+	return func(c *Client) error {
+		c.Client = doer
+		return nil
+	}
+}
+
+// WithRequestEditorFn allows setting up a callback function, which will be
+// called right before sending the request. This can be used to mutate the request.
+func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
+	return func(c *Client) error {
+		c.RequestEditors = append(c.RequestEditors, fn)
+		return nil
+	}
+}
+
+// The interface specification for the client above.
+type ClientInterface interface {
+	// ListBackends request
+	ListBackends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListEntities request
+	ListEntities(ctx context.Context, backend Backend, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListItems request
+	ListItems(ctx context.Context, backend Backend, entity Entity, params *ListItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateItemWithBody request with any body
+	CreateItemWithBody(ctx context.Context, backend Backend, entity Entity, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateItem(ctx context.Context, backend Backend, entity Entity, body CreateItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteItemById request
+	DeleteItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetItemById request
+	GetItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExistsItemById request
+	ExistsItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateItemById request
+	UpdateItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) ListBackends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListBackendsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListEntities(ctx context.Context, backend Backend, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEntitiesRequest(c.Server, backend)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListItems(ctx context.Context, backend Backend, entity Entity, params *ListItemsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListItemsRequest(c.Server, backend, entity, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateItemWithBody(ctx context.Context, backend Backend, entity Entity, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateItemRequestWithBody(c.Server, backend, entity, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) CreateItem(ctx context.Context, backend Backend, entity Entity, body CreateItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateItemRequest(c.Server, backend, entity, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DeleteItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteItemByIdRequest(c.Server, backend, entity, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetItemByIdRequest(c.Server, backend, entity, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ExistsItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExistsItemByIdRequest(c.Server, backend, entity, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateItemByIdRequest(c.Server, backend, entity, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewListBackendsRequest generates requests for ListBackends
+func NewListBackendsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/backends")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListEntitiesRequest generates requests for ListEntities
+func NewListEntitiesRequest(server string, backend Backend) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backend", runtime.ParamLocationPath, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/entities", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListItemsRequest generates requests for ListItems
+func NewListItemsRequest(server string, backend Backend, entity Entity, params *ListItemsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backend", runtime.ParamLocationPath, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "entity", runtime.ParamLocationPath, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.PageOffset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page-offset", runtime.ParamLocationQuery, *params.PageOffset); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PageSize != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page-size", runtime.ParamLocationQuery, *params.PageSize); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Order != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "order[]", runtime.ParamLocationQuery, *params.Order); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "filter", runtime.ParamLocationQuery, *params.Filter); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateItemRequest calls the generic CreateItem builder with application/json body
+func NewCreateItemRequest(server string, backend Backend, entity Entity, body CreateItemJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateItemRequestWithBody(server, backend, entity, "application/json", bodyReader)
+}
+
+// NewCreateItemRequestWithBody generates requests for CreateItem with any type of body
+func NewCreateItemRequestWithBody(server string, backend Backend, entity Entity, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backend", runtime.ParamLocationPath, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "entity", runtime.ParamLocationPath, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteItemByIdRequest generates requests for DeleteItemById
+func NewDeleteItemByIdRequest(server string, backend Backend, entity Entity, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backend", runtime.ParamLocationPath, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "entity", runtime.ParamLocationPath, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/%s/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetItemByIdRequest generates requests for GetItemById
+func NewGetItemByIdRequest(server string, backend Backend, entity Entity, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backend", runtime.ParamLocationPath, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "entity", runtime.ParamLocationPath, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/%s/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewExistsItemByIdRequest generates requests for ExistsItemById
+func NewExistsItemByIdRequest(server string, backend Backend, entity Entity, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backend", runtime.ParamLocationPath, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "entity", runtime.ParamLocationPath, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/%s/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("HEAD", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateItemByIdRequest generates requests for UpdateItemById
+func NewUpdateItemByIdRequest(server string, backend Backend, entity Entity, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backend", runtime.ParamLocationPath, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "entity", runtime.ParamLocationPath, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/%s/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
+	for _, r := range c.RequestEditors {
+		if err := r(ctx, req); err != nil {
+			return err
+		}
+	}
+	for _, r := range additionalEditors {
+		if err := r(ctx, req); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ClientWithResponses builds on ClientInterface to offer response payloads
+type ClientWithResponses struct {
+	ClientInterface
+}
+
+// NewClientWithResponses creates a new ClientWithResponses, which wraps
+// Client with return type handling
+func NewClientWithResponses(server string, opts ...ClientOption) (*ClientWithResponses, error) {
+	client, err := NewClient(server, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &ClientWithResponses{client}, nil
+}
+
+// WithBaseURL overrides the baseURL.
+func WithBaseURL(baseURL string) ClientOption {
+	return func(c *Client) error {
+		newBaseURL, err := url.Parse(baseURL)
+		if err != nil {
+			return err
+		}
+		c.Server = newBaseURL.String()
+		return nil
+	}
+}
+
+// ClientWithResponsesInterface is the interface specification for the client with responses above.
+type ClientWithResponsesInterface interface {
+	// ListBackendsWithResponse request
+	ListBackendsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListBackendsResponse, error)
+
+	// ListEntitiesWithResponse request
+	ListEntitiesWithResponse(ctx context.Context, backend Backend, reqEditors ...RequestEditorFn) (*ListEntitiesResponse, error)
+
+	// ListItemsWithResponse request
+	ListItemsWithResponse(ctx context.Context, backend Backend, entity Entity, params *ListItemsParams, reqEditors ...RequestEditorFn) (*ListItemsResponse, error)
+
+	// CreateItemWithBodyWithResponse request with any body
+	CreateItemWithBodyWithResponse(ctx context.Context, backend Backend, entity Entity, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateItemResponse, error)
+
+	CreateItemWithResponse(ctx context.Context, backend Backend, entity Entity, body CreateItemJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateItemResponse, error)
+
+	// DeleteItemByIdWithResponse request
+	DeleteItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*DeleteItemByIdResponse, error)
+
+	// GetItemByIdWithResponse request
+	GetItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*GetItemByIdResponse, error)
+
+	// ExistsItemByIdWithResponse request
+	ExistsItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*ExistsItemByIdResponse, error)
+
+	// UpdateItemByIdWithResponse request
+	UpdateItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*UpdateItemByIdResponse, error)
+}
+
+type ListBackendsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *NameList
+}
+
+// Status returns HTTPResponse.Status
+func (r ListBackendsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListBackendsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListEntitiesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *NameList
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEntitiesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEntitiesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListItemsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *PagedResult
+}
+
+// Status returns HTTPResponse.Status
+func (r ListItemsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListItemsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateItemResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON202      *UntypedDto
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateItemResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateItemResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteItemByIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteItemByIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteItemByIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetItemByIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *UntypedDto
+}
+
+// Status returns HTTPResponse.Status
+func (r GetItemByIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetItemByIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ExistsItemByIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r ExistsItemByIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExistsItemByIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateItemByIdResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *UntypedDto
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateItemByIdResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateItemByIdResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ListBackendsWithResponse request returning *ListBackendsResponse
+func (c *ClientWithResponses) ListBackendsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListBackendsResponse, error) {
+	rsp, err := c.ListBackends(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListBackendsResponse(rsp)
+}
+
+// ListEntitiesWithResponse request returning *ListEntitiesResponse
+func (c *ClientWithResponses) ListEntitiesWithResponse(ctx context.Context, backend Backend, reqEditors ...RequestEditorFn) (*ListEntitiesResponse, error) {
+	rsp, err := c.ListEntities(ctx, backend, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEntitiesResponse(rsp)
+}
+
+// ListItemsWithResponse request returning *ListItemsResponse
+func (c *ClientWithResponses) ListItemsWithResponse(ctx context.Context, backend Backend, entity Entity, params *ListItemsParams, reqEditors ...RequestEditorFn) (*ListItemsResponse, error) {
+	rsp, err := c.ListItems(ctx, backend, entity, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListItemsResponse(rsp)
+}
+
+// CreateItemWithBodyWithResponse request with arbitrary body returning *CreateItemResponse
+func (c *ClientWithResponses) CreateItemWithBodyWithResponse(ctx context.Context, backend Backend, entity Entity, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateItemResponse, error) {
+	rsp, err := c.CreateItemWithBody(ctx, backend, entity, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateItemResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateItemWithResponse(ctx context.Context, backend Backend, entity Entity, body CreateItemJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateItemResponse, error) {
+	rsp, err := c.CreateItem(ctx, backend, entity, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateItemResponse(rsp)
+}
+
+// DeleteItemByIdWithResponse request returning *DeleteItemByIdResponse
+func (c *ClientWithResponses) DeleteItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*DeleteItemByIdResponse, error) {
+	rsp, err := c.DeleteItemById(ctx, backend, entity, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteItemByIdResponse(rsp)
+}
+
+// GetItemByIdWithResponse request returning *GetItemByIdResponse
+func (c *ClientWithResponses) GetItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*GetItemByIdResponse, error) {
+	rsp, err := c.GetItemById(ctx, backend, entity, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetItemByIdResponse(rsp)
+}
+
+// ExistsItemByIdWithResponse request returning *ExistsItemByIdResponse
+func (c *ClientWithResponses) ExistsItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*ExistsItemByIdResponse, error) {
+	rsp, err := c.ExistsItemById(ctx, backend, entity, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExistsItemByIdResponse(rsp)
+}
+
+// UpdateItemByIdWithResponse request returning *UpdateItemByIdResponse
+func (c *ClientWithResponses) UpdateItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*UpdateItemByIdResponse, error) {
+	rsp, err := c.UpdateItemById(ctx, backend, entity, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateItemByIdResponse(rsp)
+}
+
+// ParseListBackendsResponse parses an HTTP response from a ListBackendsWithResponse call
+func ParseListBackendsResponse(rsp *http.Response) (*ListBackendsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListBackendsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest NameList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListEntitiesResponse parses an HTTP response from a ListEntitiesWithResponse call
+func ParseListEntitiesResponse(rsp *http.Response) (*ListEntitiesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEntitiesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest NameList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListItemsResponse parses an HTTP response from a ListItemsWithResponse call
+func ParseListItemsResponse(rsp *http.Response) (*ListItemsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListItemsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PagedResult
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateItemResponse parses an HTTP response from a CreateItemWithResponse call
+func ParseCreateItemResponse(rsp *http.Response) (*CreateItemResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateItemResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest UntypedDto
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteItemByIdResponse parses an HTTP response from a DeleteItemByIdWithResponse call
+func ParseDeleteItemByIdResponse(rsp *http.Response) (*DeleteItemByIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteItemByIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetItemByIdResponse parses an HTTP response from a GetItemByIdWithResponse call
+func ParseGetItemByIdResponse(rsp *http.Response) (*GetItemByIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetItemByIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UntypedDto
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseExistsItemByIdResponse parses an HTTP response from a ExistsItemByIdWithResponse call
+func ParseExistsItemByIdResponse(rsp *http.Response) (*ExistsItemByIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExistsItemByIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseUpdateItemByIdResponse parses an HTTP response from a UpdateItemByIdWithResponse call
+func ParseUpdateItemByIdResponse(rsp *http.Response) (*UpdateItemByIdResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateItemByIdResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UntypedDto
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
