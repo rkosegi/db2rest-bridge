@@ -18,6 +18,7 @@ package crud
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -25,8 +26,10 @@ import (
 	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
+	"github.com/samber/lo"
 )
 
 var (
@@ -38,18 +41,41 @@ var (
 
 type bedb struct {
 	io.Closer
-	config *types.BackendConfig
-	l      *slog.Logger
+	config  *types.BackendConfig
+	l       *slog.Logger
+	mdCache *ttlcache.Cache[string, map[string]*sql.ColumnType]
 }
 
-func (c *bedb) logSQL(sql string) string {
-	c.l.Debug("SQL", "query", sql)
+func (be *bedb) Load(c *ttlcache.Cache[string, map[string]*sql.ColumnType], key string) *ttlcache.Item[string, map[string]*sql.ColumnType] {
+	be.l.Debug("loading entity metadata into cache", "entity", key)
+	qry := be.logSQL(createSingleSelectQuery(key, be.config.IdColumn(key)))
+
+	rows, err := be.config.DB().Query(qry, "0")
+	if err != nil {
+		return nil
+	}
+	defer func(rows *sql.Rows) {
+		_ = rows.Close()
+	}(rows)
+
+	if _, colTypes, err := getRowMetadata(rows); err != nil {
+		be.l.Warn("unable to fetch row metadata", "entity", key, "err", err)
+		return nil
+	} else {
+		return c.Set(key, lo.Associate(colTypes, func(item *sql.ColumnType) (string, *sql.ColumnType) {
+			return item.Name(), item
+		}), ttlcache.DefaultTTL)
+	}
+}
+
+func (be *bedb) logSQL(sql string) string {
+	be.l.Debug("SQL", "query", sql)
 	return sql
 }
 
-func (c *bedb) fetchOneItem(entity, id string, retrieve bool) (res Untyped, err error) {
-	qry := c.logSQL(createSingleSelectQuery(entity, c.config.IdColumn(entity)))
-	rows, err := c.config.DB().Query(qry, id)
+func (be *bedb) fetchOneItem(entity, id string, retrieve bool) (res Untyped, err error) {
+	qry := be.logSQL(createSingleSelectQuery(entity, be.config.IdColumn(entity)))
+	rows, err := be.config.DB().Query(qry, id)
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +100,8 @@ func (c *bedb) fetchOneItem(entity, id string, retrieve bool) (res Untyped, err 
 	return res, nil
 }
 
-func (c *bedb) ListItems(entity string, qe query.Interface) (*PagedResult, error) {
-	if !*c.config.Read {
+func (be *bedb) ListItems(entity string, qe query.Interface) (*PagedResult, error) {
+	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
 	var (
@@ -93,14 +119,14 @@ func (c *bedb) ListItems(entity string, qe query.Interface) (*PagedResult, error
 	if qe == nil {
 		qe = query.DefaultQuery
 	}
-	qry = c.logSQL(fmt.Sprintf("SELECT COUNT(1) FROM `%s` WHERE %s", entity, qe.Filter().String()))
-	row := c.config.DB().QueryRow(qry)
+	qry = be.logSQL(fmt.Sprintf("SELECT COUNT(1) FROM `%s` WHERE %s", entity, qe.Filter().String()))
+	row := be.config.DB().QueryRow(qry)
 	if err = row.Scan(&cnt); err != nil {
 		return nil, err
 	}
 
-	qry = c.logSQL(fmt.Sprintf("SELECT * FROM `%s` %s", entity, qe.String()))
-	rows, err = c.config.DB().Query(qry)
+	qry = be.logSQL(fmt.Sprintf("SELECT * FROM `%s` %s", entity, qe.String()))
+	rows, err = be.config.DB().Query(qry)
 	if err != nil {
 		return nil, err
 	}
@@ -127,15 +153,15 @@ func (c *bedb) ListItems(entity string, qe query.Interface) (*PagedResult, error
 	}, nil
 }
 
-func (c *bedb) ListEntities() ([]string, error) {
-	if !*c.config.Read {
+func (be *bedb) ListEntities() ([]string, error) {
+	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
 	var (
 		err error
 		res []string
 	)
-	rows, err := c.config.DB().Query(c.logSQL("SHOW TABLES"))
+	rows, err := be.config.DB().Query(be.logSQL("SHOW TABLES"))
 	if err != nil {
 		return nil, err
 	}
@@ -153,44 +179,72 @@ func (c *bedb) ListEntities() ([]string, error) {
 	return res, nil
 }
 
-func (c *bedb) Exists(entity, id string) (bool, error) {
-	if !*c.config.Read {
+func (be *bedb) Exists(entity, id string) (bool, error) {
+	if !*be.config.Read {
 		return false, errReadNotAllowed
 	}
-	r, err := c.fetchOneItem(entity, id, false)
+	r, err := be.fetchOneItem(entity, id, false)
 	return r != nil, err
 }
 
-func (c *bedb) Get(entity, id string) (res Untyped, err error) {
-	if !*c.config.Read {
+func (be *bedb) Get(entity, id string) (res Untyped, err error) {
+	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
-	return c.fetchOneItem(entity, id, true)
+	return be.fetchOneItem(entity, id, true)
 }
 
-func (c *bedb) Delete(entity, id string) (err error) {
-	if !*c.config.Delete {
+func (be *bedb) Delete(entity, id string) (err error) {
+	if !*be.config.Delete {
 		return errDeleteNotAllowed
 	}
-	qry := c.logSQL(createDeleteQuery(entity, c.config.IdColumn(entity)))
-	_, err = c.config.DB().Exec(qry, id)
+	qry := be.logSQL(createDeleteQuery(entity, be.config.IdColumn(entity)))
+	_, err = be.config.DB().Exec(qry, id)
 	return err
 }
 
-func (c *bedb) Update(entity, id string, body Untyped) (Untyped, error) {
-	if !*c.config.Update {
+func (be *bedb) Update(entity, id string, body Untyped) (Untyped, error) {
+	if !*be.config.Update {
 		return nil, errUpdateNotAllowed
 	}
-	qry, values := createUpdateQuery(entity, c.config.IdColumn(entity), body)
+	md := be.mdCache.Get(entity)
+	if md != nil {
+		body = remapBody(md, body)
+	}
+	qry, values := createUpdateQuery(entity, be.config.IdColumn(entity), body)
 	values = append(values, id)
-	if _, err := c.config.DB().Exec(c.logSQL(qry), values...); err != nil {
+	if _, err := be.config.DB().Exec(be.logSQL(qry), values...); err != nil {
 		return nil, err
 	}
-	return c.fetchOneItem(entity, id, true)
+	return be.fetchOneItem(entity, id, true)
 }
 
-func (c *bedb) Create(entity string, body Untyped) (Untyped, error) {
-	if !*c.config.Create {
+func remapValue(v interface{}, ct *sql.ColumnType) interface{} {
+	switch v := v.(type) {
+	case string:
+		if ct.DatabaseTypeName() == "BLOB" {
+			bytes, err := base64.StdEncoding.DecodeString(v)
+			if err != nil {
+				return v
+			}
+			return bytes
+		}
+	}
+
+	return v
+}
+
+func remapBody(md *ttlcache.Item[string, map[string]*sql.ColumnType], body Untyped) Untyped {
+	for key, val := range body {
+		if ct, ok := md.Value()[key]; ok {
+			body[key] = remapValue(val, ct)
+		}
+	}
+	return body
+}
+
+func (be *bedb) Create(entity string, body Untyped) (Untyped, error) {
+	if !*be.config.Create {
 		return nil, errCreateNotAllowed
 	}
 	var (
@@ -198,12 +252,16 @@ func (c *bedb) Create(entity string, body Untyped) (Untyped, error) {
 		id  int64
 		res sql.Result
 	)
+	md := be.mdCache.Get(entity)
+	if md != nil {
+		body = remapBody(md, body)
+	}
 	qry, values := createInsertQuery(entity, body)
-	if res, err = c.config.DB().Exec(c.logSQL(qry), values...); err != nil {
+	if res, err = be.config.DB().Exec(be.logSQL(qry), values...); err != nil {
 		return nil, err
 	}
 	if id, err = res.LastInsertId(); err != nil {
 		return nil, err
 	}
-	return c.fetchOneItem(entity, strconv.FormatInt(id, 10), true)
+	return be.fetchOneItem(entity, strconv.FormatInt(id, 10), true)
 }
