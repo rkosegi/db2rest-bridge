@@ -17,9 +17,12 @@ limitations under the License.
 package crud
 
 import (
+	"database/sql"
 	"io"
 	"log/slog"
+	"time"
 
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
 	"go.uber.org/multierr"
@@ -64,8 +67,16 @@ func (m *NameToCrudMap) Close() error {
 }
 
 func New(be *types.BackendConfig, n string, logger *slog.Logger) Interface {
-	return &bedb{
+	impl := &bedb{
 		config: be,
 		l:      logger.With("backend", n),
 	}
+	c := ttlcache.New[string, map[string]*sql.ColumnType](
+		ttlcache.WithTTL[string, map[string]*sql.ColumnType](1*time.Hour),
+		ttlcache.WithCapacity[string, map[string]*sql.ColumnType](250),
+		ttlcache.WithLoader[string, map[string]*sql.ColumnType](impl),
+	)
+	impl.mdCache = c
+	go impl.mdCache.Start()
+	return impl
 }
