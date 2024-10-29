@@ -49,8 +49,9 @@ func (rs *restServer) handleItem(writer http.ResponseWriter, request *http.Reque
 	})
 }
 
-func sendJson(w http.ResponseWriter, v interface{}) {
+func sendJson(w http.ResponseWriter, v interface{}, status int) {
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	err := json.NewEncoder(w).Encode(v)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
