@@ -30,7 +30,7 @@ import (
 func (rs *restServer) ListBackends(w http.ResponseWriter, _ *http.Request) {
 	bes := lo.Keys(rs.cfg.Backends)
 	slices.Sort(bes)
-	sendJson(w, bes)
+	sendJson(w, bes, http.StatusOK)
 }
 
 func (rs *restServer) ListEntities(w http.ResponseWriter, r *http.Request, backend string) {
@@ -39,7 +39,7 @@ func (rs *restServer) ListEntities(w http.ResponseWriter, r *http.Request, backe
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 		} else {
 			slices.Sort(entities)
-			sendJson(writer, entities)
+			sendJson(writer, entities, http.StatusOK)
 		}
 	})
 }
@@ -59,7 +59,7 @@ func (rs *restServer) ListItems(w http.ResponseWriter, r *http.Request, backend 
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		sendJson(writer, res)
+		sendJson(writer, res, http.StatusOK)
 	})
 }
 
@@ -73,7 +73,7 @@ func (rs *restServer) CreateItem(w http.ResponseWriter, r *http.Request, backend
 			if body, err = c.Create(entity, body); err != nil {
 				http.Error(writer, err.Error(), http.StatusInternalServerError)
 			} else {
-				sendJson(writer, body)
+				sendJson(writer, body, http.StatusCreated)
 			}
 		}
 	})
@@ -86,7 +86,7 @@ func (rs *restServer) GetItemById(w http.ResponseWriter, r *http.Request, backen
 			return
 		} else {
 			if obj != nil {
-				sendJson(writer, obj)
+				sendJson(writer, obj, http.StatusOK)
 			} else {
 				w.WriteHeader(http.StatusNotFound)
 			}
@@ -131,7 +131,7 @@ func (rs *restServer) UpdateItemById(w http.ResponseWriter, r *http.Request, bac
 			http.Error(writer, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		sendJson(w, body)
+		sendJson(w, body, http.StatusAccepted)
 	})
 }
 

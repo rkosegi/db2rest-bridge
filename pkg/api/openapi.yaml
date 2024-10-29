@@ -149,7 +149,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UntypedDto'
       responses:
-        '202':
+        '201':
           description: Created DTO
           content:
             application/json:
@@ -192,7 +192,7 @@ paths:
       operationId: updateItemById
       summary: Update entity item in-place by ID
       responses:
-        '200':
+        '202':
           description: Updated entity item
           content:
             application/json:
@@ -220,7 +220,7 @@ paths:
       operationId: deleteItemById
       summary: Delete entity item by ID
       responses:
-        '202':
+        '204':
           description: Item was removed.
         '405':
           description: Delete is not allowed.
