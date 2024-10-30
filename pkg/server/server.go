@@ -19,13 +19,36 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/crud"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
+)
+
+var (
+	httpDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
+		Namespace: "db2rest",
+		Name:      "http_duration_seconds",
+		Help:      "Duration of HTTP requests.",
+	}, []string{"backend", "entity", "method", "status"})
+	httpRequestBytes = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "db2rest",
+		Name:      "http_request_bytes",
+		Help:      "Total bytes of HTTP requests.",
+	}, []string{"backend", "entity", "method", "status"})
+	httpResponseBytes = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "db2rest",
+		Name:      "http_response_bytes",
+		Help:      "Total bytes of HTTP responses.",
+	}, []string{"backend", "entity", "method", "status"})
 )
 
 type restServer struct {
@@ -62,6 +85,7 @@ func (rs *restServer) Run() (err error) {
 		rs.crudMap[n] = crud.New(be, n, rs.logger)
 	}
 	rs.logger.Info("starting server", "listen address", rs.cfg.Server.HTTPListenAddress)
+	middlewares := []api.MiddlewareFunc{loggingMiddleware(rs.logger.With("type", "access log"))}
 
 	cors := handlers.CORS(
 		handlers.AllowedMethods([]string{
@@ -79,14 +103,36 @@ func (rs *restServer) Run() (err error) {
 	r := mux.NewRouter()
 	r.HandleFunc("/spec/opeanapi.v1.json", rs.specHandler())
 
+	if rs.cfg.Server.Telemetry.Enabled {
+		middlewares = append(middlewares, func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				p := r.URL.Path
+				if strings.HasPrefix(p, *rs.cfg.Server.APiPrefix) {
+					p = strings.TrimPrefix(p, *rs.cfg.Server.APiPrefix)
+					p = strings.TrimPrefix(p, "/")
+					parts := strings.SplitN(p, "/", 3)
+					start := time.Now()
+					ir := &interceptedResp{delegate: w}
+					next.ServeHTTP(ir, r)
+					httpDuration.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Observe(start.Sub(time.Now()).Seconds())
+					if r.ContentLength > 0 {
+						httpRequestBytes.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Add(float64(r.ContentLength))
+					}
+					httpResponseBytes.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Add(float64(ir.Written()))
+				} else {
+					next.ServeHTTP(w, r)
+				}
+			})
+		})
+		r.Handle(rs.cfg.Server.Telemetry.Path, promhttp.Handler())
+	}
+
 	rs.server = &http.Server{
 		Addr: rs.cfg.Server.HTTPListenAddress,
 		Handler: cors(api.HandlerWithOptions(rs, api.GorillaServerOptions{
-			BaseURL:    "/api/v1",
-			BaseRouter: r,
-			Middlewares: []api.MiddlewareFunc{
-				loggingMiddleware(rs.logger.With("type", "access log")),
-			},
+			BaseURL:     *rs.cfg.Server.APiPrefix,
+			BaseRouter:  r,
+			Middlewares: middlewares,
 		})),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
@@ -100,5 +146,11 @@ func (rs *restServer) Run() (err error) {
 		)
 	} else {
 		return rs.server.ListenAndServe()
+	}
+}
+
+func (rs *restServer) telemetryHandler() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+
 	}
 }

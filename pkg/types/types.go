@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	"github.com/samber/lo"
 )
 
 var (
@@ -124,10 +126,18 @@ type LoggingConfig struct {
 	Format *string `yaml:"format,omitempty"`
 }
 
+type TelemetryConfig struct {
+	Enabled bool `yaml:"enabled"`
+	// Path under which prometheus registry is exposed
+	Path string `yaml:"path"`
+}
+
 type ServerConfig struct {
-	HTTPListenAddress string      `yaml:"http_listen_address"`
-	HTTPTLSConfig     *TLSConfig  `yaml:"http_tls_config"`
-	CorsConfig        *CorsConfig `yaml:"cors"`
+	HTTPListenAddress string     `yaml:"http_listen_address"`
+	HTTPTLSConfig     *TLSConfig `yaml:"http_tls_config"`
+	APiPrefix         *string
+	CorsConfig        *CorsConfig      `yaml:"cors"`
+	Telemetry         *TelemetryConfig `yaml:"telemetry,omitempty"`
 }
 
 type Config struct {
@@ -144,7 +154,17 @@ func (c *Config) CheckAndNormalize() error {
 	if len(c.Backends) == 0 {
 		return ErrNoBackend
 	}
-
+	if c.Server.Telemetry == nil {
+		c.Server.Telemetry = &TelemetryConfig{
+			Enabled: FALSE,
+		}
+	}
+	if len(c.Server.Telemetry.Path) == 0 {
+		c.Server.Telemetry.Path = "/metrics"
+	}
+	if c.Server.APiPrefix == nil {
+		c.Server.APiPrefix = lo.ToPtr("/api/v1")
+	}
 	for k, v := range c.Backends {
 		if !beNameRE.MatchString(k) {
 			return fmt.Errorf("invalid backend name: %s", k)
