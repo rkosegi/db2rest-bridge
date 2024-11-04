@@ -79,6 +79,9 @@ type ListItemsParams struct {
 // CreateItemJSONRequestBody defines body for CreateItem for application/json ContentType.
 type CreateItemJSONRequestBody = UntypedDto
 
+// UpdateItemByIdJSONRequestBody defines body for UpdateItemById for application/json ContentType.
+type UpdateItemByIdJSONRequestBody = UntypedDto
+
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
 
@@ -175,8 +178,10 @@ type ClientInterface interface {
 	// ExistsItemById request
 	ExistsItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateItemById request
-	UpdateItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// UpdateItemByIdWithBody request with any body
+	UpdateItemByIdWithBody(ctx context.Context, backend Backend, entity Entity, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateItemById(ctx context.Context, backend Backend, entity Entity, id string, body UpdateItemByIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) ListBackends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -275,8 +280,20 @@ func (c *Client) ExistsItemById(ctx context.Context, backend Backend, entity Ent
 	return c.Client.Do(req)
 }
 
-func (c *Client) UpdateItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateItemByIdRequest(c.Server, backend, entity, id)
+func (c *Client) UpdateItemByIdWithBody(ctx context.Context, backend Backend, entity Entity, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateItemByIdRequestWithBody(c.Server, backend, entity, id, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateItemById(ctx context.Context, backend Backend, entity Entity, id string, body UpdateItemByIdJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateItemByIdRequest(c.Server, backend, entity, id, body)
 	if err != nil {
 		return nil, err
 	}
@@ -657,8 +674,19 @@ func NewExistsItemByIdRequest(server string, backend Backend, entity Entity, id 
 	return req, nil
 }
 
-// NewUpdateItemByIdRequest generates requests for UpdateItemById
-func NewUpdateItemByIdRequest(server string, backend Backend, entity Entity, id string) (*http.Request, error) {
+// NewUpdateItemByIdRequest calls the generic UpdateItemById builder with application/json body
+func NewUpdateItemByIdRequest(server string, backend Backend, entity Entity, id string, body UpdateItemByIdJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateItemByIdRequestWithBody(server, backend, entity, id, "application/json", bodyReader)
+}
+
+// NewUpdateItemByIdRequestWithBody generates requests for UpdateItemById with any type of body
+func NewUpdateItemByIdRequestWithBody(server string, backend Backend, entity Entity, id string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -697,10 +725,12 @@ func NewUpdateItemByIdRequest(server string, backend Backend, entity Entity, id 
 		return nil, err
 	}
 
-	req, err := http.NewRequest("PUT", queryURL.String(), nil)
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -771,8 +801,10 @@ type ClientWithResponsesInterface interface {
 	// ExistsItemByIdWithResponse request
 	ExistsItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*ExistsItemByIdResponse, error)
 
-	// UpdateItemByIdWithResponse request
-	UpdateItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*UpdateItemByIdResponse, error)
+	// UpdateItemByIdWithBodyWithResponse request with any body
+	UpdateItemByIdWithBodyWithResponse(ctx context.Context, backend Backend, entity Entity, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateItemByIdResponse, error)
+
+	UpdateItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, body UpdateItemByIdJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateItemByIdResponse, error)
 }
 
 type ListBackendsResponse struct {
@@ -930,7 +962,7 @@ func (r ExistsItemByIdResponse) StatusCode() int {
 type UpdateItemByIdResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON202      *UntypedDto
+	JSON200      *UntypedDto
 }
 
 // Status returns HTTPResponse.Status
@@ -1020,9 +1052,17 @@ func (c *ClientWithResponses) ExistsItemByIdWithResponse(ctx context.Context, ba
 	return ParseExistsItemByIdResponse(rsp)
 }
 
-// UpdateItemByIdWithResponse request returning *UpdateItemByIdResponse
-func (c *ClientWithResponses) UpdateItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*UpdateItemByIdResponse, error) {
-	rsp, err := c.UpdateItemById(ctx, backend, entity, id, reqEditors...)
+// UpdateItemByIdWithBodyWithResponse request with arbitrary body returning *UpdateItemByIdResponse
+func (c *ClientWithResponses) UpdateItemByIdWithBodyWithResponse(ctx context.Context, backend Backend, entity Entity, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateItemByIdResponse, error) {
+	rsp, err := c.UpdateItemByIdWithBody(ctx, backend, entity, id, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateItemByIdResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, body UpdateItemByIdJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateItemByIdResponse, error) {
+	rsp, err := c.UpdateItemById(ctx, backend, entity, id, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1205,12 +1245,12 @@ func ParseUpdateItemByIdResponse(rsp *http.Response) (*UpdateItemByIdResponse, e
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest UntypedDto
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON202 = &dest
+		response.JSON200 = &dest
 
 	}
 
@@ -1703,35 +1743,35 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"89mzenxpdrDDRbl+qv8TAAD//4YpkHhIFwAA",
+	"H4sIAAAAAAAC/8xY33PbuBH+V3bQPiRTWqLiSx80kwfHUq9qM44bO0+m5wSRKxIJCfAAUIqq4f/eWYCi",
+	"fpCy3btL5p5sksB+33672F1hy2JVlEqitIaNt6zkmhdoUbunBY+/okzo3wRNrEVphZJszG54gaCW0CwA",
+	"q2CJNs4ApRVWoIGlVgULmKDVJbcZC5jkBbJxazRgGn+thMaEja2uMGAmzrDghFbwbx9QpjZj479fBqwQ",
+	"cvc4CsicRU2GH6Jo/cvF499YwOymJOPGaiFTVtcBc1Q257k333s5tt++J8V6Z85pTbQ+CGO7hOktESZu",
+	"JgBTxRlws9PegNKt7OSNxcIZPIFr8bnWfEPPtzzF5BOaKu8BdR8hb6C90YCVWpWoHRLt4NZJ0UL+VeOS",
+	"jdlfhvukGjYuDj9Lwk8mVvVxUculwR4aH917ohBXWqO0UPIUXXaBzRAWmAopycHWpqyKBWoHoizPf4lV",
+	"JXss39NH8ItbF6HgNs6ETFu4pcgt6q71vQ9q8QVjS3gHLo63jCeJICye3x6o5tPomMpnaayuYltpTCBW",
+	"0qK0ASQidtv1huj5MF5YdcHlBlY8r9AMWIcE8RJyqXoCinqpdAHXnz5PgPhw+gA85UIaCxTLBTe4T6vK",
+	"kA6fpnf3cHU7I6xcxCgNku3mnFyVPM4Q3gxCFrBK52zMMmtLMx4O1+v1gLvPA6XTYbPXDD/Mrqc3d9OL",
+	"N4NwkNkid4ESNidzkx0Jq1pgWGiRpMgCtkJtvC+r0SAchC5vSpS8FGzMLgfh4JK5o5e5ZBzuPKGHtC+5",
+	"fkbbZjjPc5J+KVIXhXavg/BazZLmML7ff9RoSkV+kfU3YUh/mgi6HCjLXMRu9/CLIdDtQQl56ri05cCF",
+	"tL8gnOPsKktVFFxvdqvPu2d5atj4oS3Lj7R7uG0e62FbWl6i4lep1nLfBNbCZkJCKlYoYV/3u4pO9/Xr",
+	"sAM99Gu0X7KLMasf/wSxeIn3Z2LTv3Uv2S5KTWM6DdLWv6/PBskB+UVNpfPHu9RqJRIqO1pY1IL3hme2",
+	"K//Hsel2DGjqeNNUf61Qb/ZdlUr3RbvioJUKKYqqYOOwrWdCWkx9ne3FMeK/+BRK8/2oXXuMURgGe8TR",
+	"SxB3MVY6QQ2iqdZCSQNCgquqagnzr7h5lwiN7tN8EMl/4wY0lhoNpdNO/qXAPIFXscqrQr4GLhNod4Ew",
+	"oKQbT+ZXd9dz6u3zyfTueh5EckmN/hsvyhxhTs6+a5eI5J1bNYjkpLUVcwkLBFUIazEJiKubHWKqsN68",
+	"MMCNqQpMBpE8o6fz+uHxSM2XDhldLf/h+ikB/+vu480FylhR+vnX028kFhX5QSSvfQfON2CqslTaYgJk",
+	"3QDXCHMjSIh5AHOp7NzJOP9SyVb8qVfKjCMZyQuYbyPmt0RsDFuInHv0f8REErEAIqZK//zOP654HjEY",
+	"w6iu52QEgGjTQLjiOc0GVsHdfz449UfzPYxUdofxUsSoCsNLPIENw/o55JuP9/BKJH77KAxfH9DYieHQ",
+	"91BXNxOPY6qFw3l4Qhme4vNEL9/WdQBPWDE853rzvKG3Ibn8+JzTr4iV23759jVc3UzglUcA/9bZISXO",
+	"JHQ70u3z+XQ0/57d5HDsfqKh+CPW0y4Oq/hBZ4h1Rc37NzfQ4NmlTe8hcUrlf6gct4prjdwiNYvmlxMa",
+	"+14lmz9MusPfEF3lrj3E/red04jSJnbEqDydRHX0o6g5AglM7j8Si5/Ct90W7ddQzkvlhgK1xmRwkgHN",
+	"IonrQx+7adA/Hgy3Iqk9co4WuxGcuPcUwfebWdKdb3/q0qbFsOYGNBZq5RifcdAbf8bBZtFhABcbmE36",
+	"Mr2ZdI5d+Bntef7hD4r39CA2To6zwgmbNRPibAKJQi8OfnPj5hkhPyFPnpGRhvIXaZghT7oiTgnf/P95",
+	"4HibwW/3efB7nL7OMP4KfkwSxqKM8bQYnNXhu1fNziQ0m5yQ67+KEt/7pozKedVzkD6XCT+pBX+eil45",
+	"cj0V/UedcK9OchS/P/6ke5Rn0r5ZdKiQkBdlzmM8l+/OAOrVLt391c221MqqWOX1eDjcZsrYerylybse",
+	"8lIMVyMWsBXXgi9yL3emdveVS+5uEVmuYp6716eC/VMZK5ur16vbGXh4d94J4tjMmzdhOOqYuFXagpKw",
+	"zkScHRghfXJ34IVMvcXGkWOrmbVlx+h9hrBb7moHj2P6DSJTd8Horr5qd0oaDU9j1NwGgcbcZUR7ikz3",
+	"zrtbBZpO8dTmsxXk+CrvYIeLcv1Y/y8AAP//XBb0s94XAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

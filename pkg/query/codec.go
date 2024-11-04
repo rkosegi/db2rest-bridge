@@ -37,6 +37,29 @@ const (
 	qpOrder           = "order[]"
 )
 
+func ToParams(params Interface) (*api.ListItemsParams, error) {
+	var (
+		data []byte
+		err  error
+	)
+	ret := &api.ListItemsParams{}
+	if fe := params.Filter(); fe != nil {
+		if data, err = json.Marshal(fe); err != nil {
+			return nil, err
+		}
+		ret.Filter = lo.ToPtr(string(data))
+	}
+	ret.Order = lo.ToPtr(lo.Map(params.Orders(), func(ord Order, _ int) string {
+		r, _ := ord.(*order).MarshalText()
+		return string(r)
+	}))
+	if paging := params.Paging(); paging != nil {
+		ret.PageOffset = lo.ToPtr(int(paging.Offset()))
+		ret.PageSize = lo.ToPtr(paging.Size())
+	}
+	return ret, nil
+}
+
 func FromParams(params api.ListItemsParams) (Interface, error) {
 	var (
 		orders Orders
@@ -85,11 +108,11 @@ func EncodeRequest(req *http.Request, qry Interface) error {
 	}
 	if qry.Orders() != nil {
 		for _, ord := range qry.Orders() {
-			var buff strings.Builder
-			if err = json.NewEncoder(&buff).Encode(ord); err != nil {
+			var data []byte
+			if data, err = ord.(*order).MarshalText(); err != nil {
 				return err
 			}
-			q.Add(qpOrder, buff.String())
+			q.Add(qpOrder, string(data))
 		}
 	}
 	if qry.Filter() != nil {

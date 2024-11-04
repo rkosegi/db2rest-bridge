@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -126,6 +127,22 @@ func TestDecodeEncode(t *testing.T) {
 		strings.TrimSpace(string(data)))
 }
 
+func TestToParams(t *testing.T) {
+	var (
+		params *api.ListItemsParams
+		err    error
+	)
+	params, err = ToParams(&qryData{
+		orders: Orders{OrderBy("name", true)},
+		paging: DefaultPaging,
+		filter: DefaultFilter,
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, params)
+	assert.Equal(t, 0, *params.PageOffset)
+	assert.Equal(t, 20, *params.PageSize)
+}
+
 func TestDecodeRequest(t *testing.T) {
 	var (
 		req *http.Request
@@ -140,11 +157,18 @@ func TestDecodeRequest(t *testing.T) {
 	req.URL.RawQuery = q.Encode()
 	s := `{"not":{"simple":{"op":"=","name":"name","val":"John"}}}`
 	qry, err = FromParams(api.ListItemsParams{
-		Filter: &s,
+		PageOffset: lo.ToPtr(31),
+		PageSize:   lo.ToPtr(20),
+		Order:      lo.ToPtr([]string{"name=asc", "age=desc"}),
+		Filter:     &s,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, qry)
 	assert.Equal(t, Op("="), qry.Filter().(*notExpr).expr.(*simpleExpr).op)
+	assert.Equal(t, "name", qry.Orders()[0].Name())
+	assert.Equal(t, true, qry.Orders()[0].Asc())
+	assert.Equal(t, "age", qry.Orders()[1].Name())
+	assert.Equal(t, false, qry.Orders()[1].Asc())
 }
 
 func TestDecodeExprFromMap(t *testing.T) {
@@ -169,5 +193,7 @@ func TestEncodeRequest(t *testing.T) {
 		paging: Page(5, 10),
 		filter: Junction(OpAnd),
 	})
+	assert.Contains(t, req.URL.RawQuery, "order%5B%5D=name")
+	assert.Contains(t, req.URL.RawQuery, "order%5B%5D=age")
 	assert.NoError(t, err)
 }
