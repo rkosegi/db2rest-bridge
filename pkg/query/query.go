@@ -44,6 +44,17 @@ type order struct {
 	asc  bool
 }
 
+func ord2str(asc bool) string {
+	if asc {
+		return "asc"
+	}
+	return "desc"
+}
+
+func (o *order) MarshalText() (text []byte, err error) {
+	return []byte(fmt.Sprintf("%s=%s", o.name, ord2str(o.asc))), nil
+}
+
 func (o *order) UnmarshalText(text []byte) error {
 	parts := strings.Split(string(text), "=")
 	o.name = parts[0]

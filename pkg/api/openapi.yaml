@@ -191,8 +191,14 @@ paths:
     put:
       operationId: updateItemById
       summary: Update entity item in-place by ID
+      requestBody:
+        description: Content of entity item to update
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UntypedDto'
       responses:
-        '202':
+        '200':
           description: Updated entity item
           content:
             application/json:
