@@ -110,7 +110,7 @@ func (q *qryData) String() string {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(q.filter.String())
 	}
-	if q.orders != nil {
+	if len(q.orders) > 0 {
 		sb.WriteString(" ORDER BY ")
 		sb.WriteString(q.orders.String())
 	}
