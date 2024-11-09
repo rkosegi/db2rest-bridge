@@ -16,37 +16,28 @@ limitations under the License.
 
 package query
 
-import "fmt"
+import (
+	"testing"
 
-type Op string
+	"github.com/stretchr/testify/assert"
+)
 
-type Order interface {
-	Name() string
-	Asc() bool
-}
+func TestBuilder(t *testing.T) {
+	assert.Equal(t, " WHERE name = 'Bob' ORDER BY `name` DESC LIMIT 120, 10", NewBuilder().
+		Paging(120, 10).
+		OrderBy("name", false).
+		Filter(SimpleExpr("name", OpEq, "Bob")).
+		Build().
+		String())
 
-type Orders []Order
+	assert.Equal(t, " WHERE name = 'Bob' LIMIT 0, 30", NewBuilder().
+		Paging(0, 30).
+		Filter(SimpleExpr("name", OpEq, "Bob")).
+		Build().
+		String())
 
-type FilterExpression interface {
-	fmt.Stringer
-}
-
-type Paging interface {
-	fmt.Stringer
-	Offset() uint64
-	Size() int
-}
-
-type Interface interface {
-	fmt.Stringer
-	Orders() Orders
-	Paging() Paging
-	Filter() FilterExpression
-}
-
-type Builder interface {
-	OrderBy(string, bool) Builder
-	Paging(int, int) Builder
-	Filter(FilterExpression) Builder
-	Build() Interface
+	assert.Equal(t, " WHERE name = 'Bob' LIMIT 0, 20", NewBuilder().
+		Filter(SimpleExpr("name", OpEq, "Bob")).
+		Build().
+		String())
 }

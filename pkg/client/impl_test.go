@@ -23,6 +23,7 @@ import (
 
 	. "github.com/jarcoal/httpmock"
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
+	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
@@ -43,6 +44,7 @@ func TestOpList(t *testing.T) {
 		err error
 		cl  GenericInterface[mockType]
 		res []*mockType
+		qry query.Interface
 	)
 	Activate()
 	defer DeactivateAndReset()
@@ -65,6 +67,15 @@ func TestOpList(t *testing.T) {
 	assert.Equal(t, len(res), 1)
 	assert.Equal(t, "Alice", res[0].Name)
 	assert.Equal(t, 42, res[0].Age)
+
+	qry, err = query.FromParams(api.ListItemsParams{
+		PageOffset: lo.ToPtr(10),
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, qry)
+	res, err = cl.List(context.Background(), query.DefaultQuery)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
 }
 
 func TestOpCreate(t *testing.T) {
