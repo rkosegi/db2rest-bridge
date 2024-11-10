@@ -70,10 +70,12 @@ func loggingMiddleware(logger *slog.Logger) api.MiddlewareFunc {
 
 func configureLogging(lf *types.LoggingConfig) *slog.Logger {
 	pc := &promslog.Config{
-		Level: &promslog.AllowedLevel{},
-		Style: promslog.GoKitStyle,
+		Level:  &promslog.AllowedLevel{},
+		Format: &promslog.AllowedFormat{},
+		Style:  promslog.GoKitStyle,
 	}
 	_ = pc.Level.Set(*lf.Level)
+	_ = pc.Format.Set(*lf.Format)
 	logger := promslog.New(pc)
 	return logger
 }

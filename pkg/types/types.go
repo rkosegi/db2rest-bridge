@@ -29,6 +29,7 @@ var (
 	FALSE                 = false
 	DefaultDbDriver       = "mysql"
 	defaultLogLevel       = "info"
+	defaultLogFormat      = "json"
 	emptyIdMap            = make(map[string]string)
 	beNameRE              = regexp.MustCompile(`^[\w-]{1,63}$`)
 	ErrNoBackend          = errors.New("no backend configured")
@@ -119,7 +120,8 @@ type TLSConfig struct {
 }
 
 type LoggingConfig struct {
-	Level *string `yaml:"level,omitempty"`
+	Level  *string `yaml:"level,omitempty"`
+	Format *string `yaml:"format,omitempty"`
 }
 
 type ServerConfig struct {
@@ -175,10 +177,13 @@ func (c *Config) CheckAndNormalize() error {
 		}
 	}
 	if c.LoggingConfig == nil {
-		c.LoggingConfig = &LoggingConfig{Level: &defaultLogLevel}
+		c.LoggingConfig = &LoggingConfig{Level: &defaultLogLevel, Format: &defaultLogFormat}
 	}
 	if c.LoggingConfig.Level == nil {
 		c.LoggingConfig.Level = &defaultLogLevel
+	}
+	if c.LoggingConfig.Format == nil {
+		c.LoggingConfig.Format = &defaultLogFormat
 	}
 	return nil
 }
