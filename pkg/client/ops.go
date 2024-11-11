@@ -110,8 +110,8 @@ func (g *generic[T]) Update(ctx context.Context, id string, obj *T) (*T, error) 
 	if cir, err = g.c.UpdateItemByIdWithResponse(ctx, g.be, g.ent, id, filterProps(m, g.skipProps)); err != nil {
 		return nil, err
 	}
-	if cir.StatusCode() != http.StatusCreated {
-		return nil, fmt.Errorf("unexpected error code: %d, wanted: %d", cir.StatusCode(), http.StatusCreated)
+	if cir.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("unexpected error code: %d, wanted: %d", cir.StatusCode(), http.StatusOK)
 	}
 	return g.decFn(*cir.JSON200)
 }
