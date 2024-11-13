@@ -18,7 +18,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
@@ -43,8 +42,8 @@ func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, error
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("unexpected error code: %d", resp.StatusCode())
+	if err = ensureResponseCode(resp.HTTPResponse, http.StatusOK); err != nil {
+		return nil, err
 	}
 	for _, e := range *resp.JSON200.Data {
 		var dto *T
@@ -69,8 +68,8 @@ func (g *generic[T]) Create(ctx context.Context, t *T) (*T, error) {
 	if cir, err = g.c.CreateItemWithResponse(ctx, g.be, g.ent, filterProps(m, g.skipProps)); err != nil {
 		return nil, err
 	}
-	if cir.StatusCode() != http.StatusCreated {
-		return nil, fmt.Errorf("unexpected error code: %d, wanted: %d", cir.StatusCode(), http.StatusCreated)
+	if err = ensureResponseCode(cir.HTTPResponse, http.StatusCreated); err != nil {
+		return nil, err
 	}
 	return g.decFn(*cir.JSON201)
 }
@@ -79,8 +78,8 @@ func (g *generic[T]) Get(ctx context.Context, id string) (*T, error) {
 	if resp, err := g.c.GetItemByIdWithResponse(ctx, g.be, g.ent, id); err != nil {
 		return nil, err
 	} else {
-		if resp.StatusCode() != http.StatusOK {
-			return nil, fmt.Errorf("unexpected error code: %d, wanted: %d", resp.StatusCode(), http.StatusOK)
+		if err = ensureResponseCode(resp.HTTPResponse, http.StatusOK); err != nil {
+			return nil, err
 		}
 		return g.decFn(*resp.JSON200)
 	}
@@ -90,9 +89,8 @@ func (g *generic[T]) Delete(ctx context.Context, id string) error {
 	if resp, err := g.c.DeleteItemByIdWithResponse(ctx, g.be, g.ent, id); err != nil {
 		return err
 	} else {
-		if resp.StatusCode() != http.StatusNoContent {
-			return fmt.Errorf("unexpected error code: %d, wanted: %d",
-				resp.StatusCode(), http.StatusNoContent)
+		if err = ensureResponseCode(resp.HTTPResponse, http.StatusNoContent); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -110,8 +108,8 @@ func (g *generic[T]) Update(ctx context.Context, id string, obj *T) (*T, error) 
 	if cir, err = g.c.UpdateItemByIdWithResponse(ctx, g.be, g.ent, id, filterProps(m, g.skipProps)); err != nil {
 		return nil, err
 	}
-	if cir.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("unexpected error code: %d, wanted: %d", cir.StatusCode(), http.StatusOK)
+	if err = ensureResponseCode(cir.HTTPResponse, http.StatusOK); err != nil {
+		return nil, err
 	}
 	return g.decFn(*cir.JSON200)
 }

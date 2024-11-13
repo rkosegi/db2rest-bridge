@@ -17,6 +17,10 @@ limitations under the License.
 package client
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"net/http"
 	"slices"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
@@ -30,4 +34,20 @@ func filterProps(in api.UntypedDto, props []string) api.UntypedDto {
 		}
 	}
 	return m
+}
+
+func ensureResponseCode(r *http.Response, code int) error {
+	if r.StatusCode != code {
+		return fmt.Errorf("unexpected error code: %d, wanted: %d, body: %s",
+			r.StatusCode, code, tryConsumeResponseBody(r))
+	}
+	return nil
+}
+
+func tryConsumeResponseBody(r *http.Response) string {
+	var out bytes.Buffer
+	if _, err := io.Copy(&out, r.Body); err != nil {
+		return ""
+	}
+	return out.String()
 }

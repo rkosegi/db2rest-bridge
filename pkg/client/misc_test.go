@@ -17,6 +17,9 @@ limitations under the License.
 package client
 
 import (
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,4 +35,16 @@ func TestFilterProps(t *testing.T) {
 	assert.Equal(t, 2, len(out))
 	assert.Equal(t, "Hello", out["name"])
 	assert.Equal(t, 42, out["age"])
+}
+
+func TestEnsureResponseCode(t *testing.T) {
+	assert.Error(t, ensureResponseCode(&http.Response{
+		StatusCode: http.StatusNotFound,
+		Body:       io.NopCloser(strings.NewReader("Not found")),
+	}, http.StatusOK))
+
+	assert.NoError(t, ensureResponseCode(&http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader("Not found")),
+	}, http.StatusOK))
 }
