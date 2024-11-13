@@ -148,9 +148,3 @@ func (rs *restServer) Run() (err error) {
 		return rs.server.ListenAndServe()
 	}
 }
-
-func (rs *restServer) telemetryHandler() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-
-	}
-}
