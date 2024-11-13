@@ -49,10 +49,12 @@ func ToParams(params Interface) (*api.ListItemsParams, error) {
 		}
 		ret.Filter = lo.ToPtr(string(data))
 	}
-	ret.Order = lo.ToPtr(lo.Map(params.Orders(), func(ord Order, _ int) string {
-		r, _ := ord.(*order).MarshalText()
-		return string(r)
-	}))
+	if len(params.Orders()) > 0 {
+		ret.Order = lo.ToPtr(lo.Map(params.Orders(), func(ord Order, _ int) string {
+			r, _ := ord.(*order).MarshalText()
+			return string(r)
+		}))
+	}
 	if paging := params.Paging(); paging != nil {
 		ret.PageOffset = lo.ToPtr(int(paging.Offset()))
 		ret.PageSize = lo.ToPtr(paging.Size())
