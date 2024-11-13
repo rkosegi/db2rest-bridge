@@ -157,6 +157,8 @@ paths:
                 $ref: "#/components/schemas/UntypedDto"
         '405':
           description: Create is not allowed.
+        '500':
+          description: Unable to create entity
       tags:
         - crud
   /{backend}/{entity}/{id}:
