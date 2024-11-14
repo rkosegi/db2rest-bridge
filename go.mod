@@ -27,7 +27,7 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.3.0
 	github.com/oapi-codegen/oapi-codegen/v2 v2.4.1
 	github.com/oapi-codegen/runtime v1.1.1
-	github.com/prometheus/client_golang v1.20.4
+	github.com/prometheus/client_golang v1.20.5
 	github.com/prometheus/common v0.60.1
 	github.com/samber/lo v1.47.0
 	github.com/stretchr/testify v1.9.0
