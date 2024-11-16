@@ -110,15 +110,16 @@ func (rs *restServer) Run() (err error) {
 				if strings.HasPrefix(p, *rs.cfg.Server.APiPrefix) {
 					p = strings.TrimPrefix(p, *rs.cfg.Server.APiPrefix)
 					p = strings.TrimPrefix(p, "/")
-					parts := strings.SplitN(p, "/", 3)
 					start := time.Now()
 					ir := &interceptedResp{delegate: w}
 					next.ServeHTTP(ir, r)
-					httpDuration.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Observe(start.Sub(time.Now()).Seconds())
-					if r.ContentLength > 0 {
-						httpRequestBytes.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Add(float64(r.ContentLength))
+					if parts := strings.SplitN(p, "/", 3); len(parts) > 1 {
+						httpDuration.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Observe(start.Sub(time.Now()).Seconds())
+						if r.ContentLength > 0 {
+							httpRequestBytes.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Add(float64(r.ContentLength))
+						}
+						httpResponseBytes.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Add(float64(ir.Written()))
 					}
-					httpResponseBytes.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Add(float64(ir.Written()))
 				} else {
 					next.ServeHTTP(w, r)
 				}
