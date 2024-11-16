@@ -200,7 +200,7 @@ paths:
             schema:
               $ref: '#/components/schemas/UntypedDto'
       responses:
-        '200':
+        202:
           description: Updated entity item
           content:
             application/json:
