@@ -24,7 +24,7 @@ import (
 )
 
 type GenericInterface[T any] interface {
-	List(context.Context, query.Interface) ([]*T, error)
+	List(context.Context, query.Interface) ([]*T, int, error)
 	Create(context.Context, *T) (*T, error)
 	Get(context.Context, string) (*T, error)
 	Delete(context.Context, string) error

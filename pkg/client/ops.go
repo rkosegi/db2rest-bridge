@@ -24,7 +24,7 @@ import (
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
 )
 
-func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, error) {
+func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, int, error) {
 	var (
 		err    error
 		params *api.ListItemsParams
@@ -36,24 +36,24 @@ func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, error
 	g.l.Debug("Listing entities", "query", qry)
 	params, err = query.ToParams(qry)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	resp, err := g.c.ListItemsWithResponse(ctx, g.be, g.ent, params)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if err = ensureResponseCode(resp.HTTPResponse, http.StatusOK); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	for _, e := range *resp.JSON200.Data {
 		var dto *T
 		dto, err = g.decFn(e)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		res = append(res, dto)
 	}
-	return res, nil
+	return res, int(*resp.JSON200.TotalCount), nil
 }
 
 func (g *generic[T]) Create(ctx context.Context, t *T) (*T, error) {
