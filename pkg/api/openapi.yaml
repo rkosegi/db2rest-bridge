@@ -266,7 +266,7 @@ components:
           items:
             $ref: "#/components/schemas/UntypedDto"
         total_count:
-          type: number
+          type: integer
           description: Total number of items matching current filter
         offset:
           type: number

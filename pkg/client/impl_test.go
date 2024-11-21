@@ -50,6 +50,7 @@ func TestOpList(t *testing.T) {
 	defer DeactivateAndReset()
 	RegisterResponder("GET", "http://loopback/dummy/mock",
 		NewJsonResponderOrPanic(http.StatusOK, api.PagedResult{
+			TotalCount: lo.ToPtr(1),
 			Data: lo.ToPtr([]api.UntypedDto{
 				map[string]interface{}{
 					"name": "Alice",
@@ -61,7 +62,7 @@ func TestOpList(t *testing.T) {
 		WithClientOptions[mockType](api.WithHTTPClient(&mockDoer{})))
 	assert.NoError(t, err)
 	assert.NotNil(t, cl)
-	res, err = cl.List(context.Background(), nil)
+	res, _, err = cl.List(context.Background(), nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, len(res), 1)
@@ -73,7 +74,7 @@ func TestOpList(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, qry)
-	res, err = cl.List(context.Background(), query.DefaultQuery)
+	res, _, err = cl.List(context.Background(), query.DefaultQuery)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 }
