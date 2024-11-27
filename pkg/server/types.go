@@ -22,6 +22,7 @@ import (
 
 	"github.com/rkosegi/db2rest-bridge/pkg/crud"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
+	xlog "github.com/rkosegi/slog-config"
 )
 
 type ItemHandler func(c crud.Interface, entity, id string, writer http.ResponseWriter, request *http.Request)
@@ -36,6 +37,6 @@ type Interface interface {
 func New(cfg *types.Config) Interface {
 	return &restServer{
 		cfg:    cfg,
-		logger: configureLogging(cfg.LoggingConfig),
+		logger: xlog.MustNew(*cfg.LoggingConfig.Level, xlog.LogFormat(*cfg.LoggingConfig.Format)).Logger(),
 	}
 }

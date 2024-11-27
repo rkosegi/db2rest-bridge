@@ -22,10 +22,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/prometheus/common/promslog"
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/crud"
-	"github.com/rkosegi/db2rest-bridge/pkg/types"
 )
 
 func (rs *restServer) handleBackend(writer http.ResponseWriter, request *http.Request, backend string, handler BackendHandler) {
@@ -66,16 +64,4 @@ func loggingMiddleware(logger *slog.Logger) api.MiddlewareFunc {
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-func configureLogging(lf *types.LoggingConfig) *slog.Logger {
-	pc := &promslog.Config{
-		Level:  &promslog.AllowedLevel{},
-		Format: &promslog.AllowedFormat{},
-		Style:  promslog.GoKitStyle,
-	}
-	_ = pc.Level.Set(*lf.Level)
-	_ = pc.Format.Set(*lf.Format)
-	logger := promslog.New(pc)
-	return logger
 }
