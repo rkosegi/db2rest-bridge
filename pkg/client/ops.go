@@ -33,7 +33,7 @@ func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, int, 
 	if qry == nil {
 		qry = query.DefaultQuery
 	}
-	g.l.Debug("Listing entities", "query", qry)
+	g.l.Debug("Listing entities", "query", qry.String())
 	params, err = query.ToParams(qry)
 	if err != nil {
 		return nil, 0, err
