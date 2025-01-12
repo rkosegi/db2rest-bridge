@@ -23,17 +23,19 @@ import (
 	"time"
 
 	"github.com/jellydator/ttlcache/v3"
+	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
 	"go.uber.org/multierr"
 )
 
-type Untyped map[string]interface{}
+// deprecated
+type Untyped api.UntypedDto
 
 type PagedResult struct {
-	Data       []Untyped `json:"data"`
-	TotalCount int       `json:"total_count"`
-	Offset     uint64    `json:"offset"`
+	Data       []api.UntypedDto `json:"data"`
+	TotalCount int              `json:"total_count"`
+	Offset     uint64           `json:"offset"`
 }
 
 // Interface is API to perform CRUD operation against backend
@@ -45,11 +47,11 @@ type Interface interface {
 	// Exists checks for existence of item based on ID
 	Exists(entity, id string) (bool, error)
 	// Get gets item based on ID
-	Get(entity, id string) (Untyped, error)
+	Get(entity, id string) (api.UntypedDto, error)
 	// Update item by its ID
-	Update(entity, id string, body Untyped) (Untyped, error)
+	Update(entity, id string, body api.UntypedDto) (api.UntypedDto, error)
 	// Create creates new item
-	Create(entity string, body Untyped) (Untyped, error)
+	Create(entity string, body api.UntypedDto) (api.UntypedDto, error)
 	// Delete deletes item by its ID
 	Delete(entity string, id string) error
 }

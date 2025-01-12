@@ -66,7 +66,7 @@ func (rs *restServer) ListItems(w http.ResponseWriter, r *http.Request, backend 
 func (rs *restServer) CreateItem(w http.ResponseWriter, r *http.Request, backend string, entity string) {
 	rs.handleEntity(w, r, backend, entity, func(c crud.Interface, entity string, writer http.ResponseWriter, request *http.Request) {
 		var err error
-		body := make(crud.Untyped)
+		body := make(api.UntypedDto)
 		if err = json.NewDecoder(request.Body).Decode(&body); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 		} else {
@@ -114,7 +114,7 @@ func (rs *restServer) UpdateItemById(w http.ResponseWriter, r *http.Request, bac
 			err    error
 			exists bool
 		)
-		body := make(crud.Untyped)
+		body := make(api.UntypedDto)
 		if err = json.NewDecoder(req.Body).Decode(&body); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return

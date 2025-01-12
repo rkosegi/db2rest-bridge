@@ -27,6 +27,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jellydator/ttlcache/v3"
+	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
 	"github.com/samber/lo"
@@ -73,7 +74,7 @@ func (be *bedb) logSQL(sql string) string {
 	return sql
 }
 
-func (be *bedb) fetchOneItem(entity, id string, retrieve bool) (res Untyped, err error) {
+func (be *bedb) fetchOneItem(entity, id string, retrieve bool) (res api.UntypedDto, err error) {
 	qry := be.logSQL(createSingleSelectQuery(entity, be.config.IdColumn(entity)))
 	rows, err := be.config.DB().Query(qry, id)
 	if err != nil {
@@ -94,7 +95,7 @@ func (be *bedb) fetchOneItem(entity, id string, retrieve bool) (res Untyped, err
 			}
 			return mapEntity(rows, cols, colTypes)
 		} else {
-			res = make(Untyped, 1)
+			res = make(api.UntypedDto, 1)
 		}
 	}
 	return res, nil
@@ -110,12 +111,12 @@ func (be *bedb) ListItems(entity string, qe query.Interface) (*PagedResult, erro
 		colTypes []*sql.ColumnType
 		err      error
 		rows     *sql.Rows
-		res      []Untyped
-		item     Untyped
+		res      []api.UntypedDto
+		item     api.UntypedDto
 		qry      string
 	)
 
-	res = make([]Untyped, 0)
+	res = make([]api.UntypedDto, 0)
 	if qe == nil {
 		qe = query.DefaultQuery
 	}
@@ -187,7 +188,7 @@ func (be *bedb) Exists(entity, id string) (bool, error) {
 	return r != nil, err
 }
 
-func (be *bedb) Get(entity, id string) (res Untyped, err error) {
+func (be *bedb) Get(entity, id string) (res api.UntypedDto, err error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
@@ -203,7 +204,7 @@ func (be *bedb) Delete(entity, id string) (err error) {
 	return err
 }
 
-func (be *bedb) Update(entity, id string, body Untyped) (Untyped, error) {
+func (be *bedb) Update(entity, id string, body api.UntypedDto) (api.UntypedDto, error) {
 	if !*be.config.Update {
 		return nil, errUpdateNotAllowed
 	}
@@ -234,7 +235,7 @@ func remapValue(v interface{}, ct *sql.ColumnType) interface{} {
 	return v
 }
 
-func remapBody(md *ttlcache.Item[string, map[string]*sql.ColumnType], body Untyped) Untyped {
+func remapBody(md *ttlcache.Item[string, map[string]*sql.ColumnType], body api.UntypedDto) api.UntypedDto {
 	for key, val := range body {
 		if ct, ok := md.Value()[key]; ok {
 			body[key] = remapValue(val, ct)
@@ -243,7 +244,7 @@ func remapBody(md *ttlcache.Item[string, map[string]*sql.ColumnType], body Untyp
 	return body
 }
 
-func (be *bedb) Create(entity string, body Untyped) (Untyped, error) {
+func (be *bedb) Create(entity string, body api.UntypedDto) (api.UntypedDto, error) {
 	if !*be.config.Create {
 		return nil, errCreateNotAllowed
 	}

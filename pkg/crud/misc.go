@@ -21,6 +21,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/samber/lo"
 )
 
@@ -61,12 +62,12 @@ func getRowMetadata(rows *sql.Rows) ([]string, []*sql.ColumnType, error) {
 	return cols, colTypes, nil
 }
 
-func mapEntity(rows *sql.Rows, columns []string, columnTypes []*sql.ColumnType) (res Untyped, err error) {
+func mapEntity(rows *sql.Rows, columns []string, columnTypes []*sql.ColumnType) (res api.UntypedDto, err error) {
 	values := make([]interface{}, len(columns))
 	for i := range values {
 		values[i] = new(interface{})
 	}
-	res = make(Untyped, len(values))
+	res = make(api.UntypedDto, len(values))
 	if err = rows.Scan(values...); err != nil {
 		return nil, err
 	}
@@ -76,7 +77,7 @@ func mapEntity(rows *sql.Rows, columns []string, columnTypes []*sql.ColumnType) 
 	return res, nil
 }
 
-func createInsertQuery(entity string, body Untyped) (string, []interface{}) {
+func createInsertQuery(entity string, body api.UntypedDto) (string, []interface{}) {
 	sb := strings.Builder{}
 	csb := strings.Builder{}
 	vsb := strings.Builder{}
@@ -108,7 +109,7 @@ func createInsertQuery(entity string, body Untyped) (string, []interface{}) {
 	return sb.String(), values
 }
 
-func createUpdateQuery(entity, idColumn string, body Untyped) (string, []interface{}) {
+func createUpdateQuery(entity, idColumn string, body api.UntypedDto) (string, []interface{}) {
 	sb := strings.Builder{}
 	sb.WriteString("UPDATE `")
 	sb.WriteString(entity)
