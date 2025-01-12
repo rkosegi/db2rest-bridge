@@ -113,3 +113,26 @@ func (g *generic[T]) Update(ctx context.Context, id string, obj *T) (*T, error) 
 	}
 	return g.decFn(*cir.JSON202)
 }
+
+func (g *generic[T]) BulkUpdate(ctx context.Context, objs []*T, mode api.BulkUpdateMode) error {
+	var (
+		resp *api.BulkUpdateResponse
+		err  error
+	)
+	encObjs := make([]api.UntypedDto, 0)
+	for _, obj := range objs {
+		var o api.UntypedDto
+		o, err = g.encFn(obj)
+		if err != nil {
+			return err
+		}
+		encObjs = append(encObjs, filterProps(o, g.skipProps))
+	}
+	if resp, err = g.c.BulkUpdateWithResponse(ctx, g.be, g.ent, api.BulkUpdateRequest{
+		Mode:    mode,
+		Objects: encObjs,
+	}); err != nil {
+		return err
+	}
+	return ensureResponseCode(resp.HTTPResponse, http.StatusOK)
+}

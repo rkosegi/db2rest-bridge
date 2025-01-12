@@ -46,7 +46,7 @@ func TestCreateInsertQuery(t *testing.T) {
 }
 
 func TestCreateDeleteQuery(t *testing.T) {
-	sql := createDeleteQuery(testEnt, testId)
+	sql := createSingleDeleteQuery(testEnt, testId)
 	assert.Equal(t, "DELETE FROM `myentity` WHERE `id` = ? LIMIT 1", sql)
 }
 

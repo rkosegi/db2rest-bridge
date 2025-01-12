@@ -29,6 +29,7 @@ type GenericInterface[T any] interface {
 	Get(context.Context, string) (*T, error)
 	Delete(context.Context, string) error
 	Update(context.Context, string, *T) (*T, error)
+	BulkUpdate(context.Context, []*T, api.BulkUpdateMode) error
 }
 
 type Opt[T any] func(*generic[T])

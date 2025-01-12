@@ -54,6 +54,10 @@ type Interface interface {
 	Create(entity string, body api.UntypedDto) (api.UntypedDto, error)
 	// Delete deletes item by its ID
 	Delete(entity string, id string) error
+	// MultiDelete deletes items that has provided ids
+	MultiDelete(entity string, ids []string) error
+	// MultiUpdate updates multiple items in one shot
+	MultiUpdate(entity string, objs []api.UntypedDto) error
 }
 
 type NameToCrudMap map[string]Interface

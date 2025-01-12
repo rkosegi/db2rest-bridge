@@ -144,3 +144,34 @@ func (rs *restServer) DeleteItemById(w http.ResponseWriter, r *http.Request, bac
 		}
 	})
 }
+
+func (rs *restServer) BulkUpdate(w http.ResponseWriter, r *http.Request, backend api.Backend, entity api.Entity) {
+	rs.handleEntity(w, r, backend, entity, func(c crud.Interface, entity string, writer http.ResponseWriter, req *http.Request) {
+		var (
+			err  error
+			body api.BulkUpdateRequest
+		)
+		if err = json.NewDecoder(req.Body).Decode(&body); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		idCol := rs.cfg.Backends[backend].IdColumn(entity)
+		switch body.Mode {
+		case api.DELETE:
+			err = c.MultiDelete(entity, lo.Map(body.Objects, func(item api.UntypedDto, _ int) string {
+				return item[idCol].(string)
+			}))
+		case api.UPDATE:
+			c.MultiUpdate(entity, lo.Map(body.Objects, func(item api.UntypedDto, _ int) api.UntypedDto {
+				return (item).(map[string]interface{})
+			})
+		case api.UPSERT:
+		case api.INSERT:
+		}
+
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	})
+}

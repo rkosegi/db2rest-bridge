@@ -17,6 +17,7 @@ limitations under the License.
 package crud
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"errors"
@@ -38,6 +39,7 @@ var (
 	errReadNotAllowed   = errors.New("read is not allowed")
 	errUpdateNotAllowed = errors.New("update is not allowed")
 	errDeleteNotAllowed = errors.New("delete is not allowed")
+	errNoObj            = errors.New("require at least one object")
 )
 
 type bedb struct {
@@ -199,7 +201,7 @@ func (be *bedb) Delete(entity, id string) (err error) {
 	if !*be.config.Delete {
 		return errDeleteNotAllowed
 	}
-	qry := be.logSQL(createDeleteQuery(entity, be.config.IdColumn(entity)))
+	qry := be.logSQL(createSingleDeleteQuery(entity, be.config.IdColumn(entity)))
 	_, err = be.config.DB().Exec(qry, id)
 	return err
 }
@@ -265,4 +267,58 @@ func (be *bedb) Create(entity string, body api.UntypedDto) (api.UntypedDto, erro
 		return nil, err
 	}
 	return be.fetchOneItem(entity, strconv.FormatInt(id, 10), true)
+}
+
+func (be *bedb) MultiDelete(entity string, ids []string) error {
+	if !*be.config.Delete {
+		return errDeleteNotAllowed
+	}
+	switch ic := len(ids); {
+	case ic == 0:
+		return errNoObj
+	case ic == 1:
+		return be.Delete(entity, ids[0])
+	default:
+		_, err := be.config.DB().Exec(be.logSQL(
+			createMultiDeleteQuery(entity, be.config.IdColumn(entity), ic)), lo.Map(ids, func(item string, _ int) any {
+			return item
+		})...)
+		return err
+	}
+}
+
+func (be *bedb) MultiUpdate(entity string, objs []api.UntypedDto) error {
+	var (
+		err error
+		tx  *sql.Tx
+	)
+	if !*be.config.Update {
+		return errUpdateNotAllowed
+	}
+	ctx := context.Background()
+	tx, err = be.config.DB().BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return err
+	}
+
+	for _, obj := range objs {
+		idCol := be.config.IdColumn(entity)
+		id := obj[idCol].(string)
+		md := be.mdCache.Get(entity)
+		if md != nil {
+			obj = remapBody(md, obj)
+		}
+		qry, values := createUpdateQuery(entity, idCol, obj)
+		values = append(values, id)
+		if _, err = tx.ExecContext(ctx, be.logSQL(qry), values...); err != nil {
+			be.l.Warn("query execution failed, rollin back", "err", err)
+			return tx.Rollback()
+		}
+	}
+	return tx.Commit()
+}
+
+func (be *bedb) MultiReplace(entity string, objs []api.UntypedDto) ([]api.UntypedDto, error) {
+
+	return nil, nil
 }

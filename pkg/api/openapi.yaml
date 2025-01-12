@@ -161,6 +161,23 @@ paths:
           description: Unable to create entity
       tags:
         - crud
+  /{backend}/{entity}/bulk:
+    parameters:
+      - $ref: '#/components/parameters/backend'
+      - $ref: '#/components/parameters/entity'
+    post:
+      operationId: bulkUpdate
+      summary: Perform bulk update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUpdateRequest'
+      responses:
+        200:
+          description: Bulk operation completed successfully
+        500:
+          description: Internal error while processing batch
   /{backend}/{entity}/{id}:
     parameters:
       - $ref: '#/components/parameters/backend'
@@ -257,6 +274,33 @@ components:
         minLength: 1
         maxLength: 63
   schemas:
+    BulkUpdateMode:
+      type: string
+      enum:
+        - INSERT
+        - UPSERT
+        - UPDATE
+        - DELETE
+      description: >
+        Mode of update:
+         * `INSERT` - Objects are inserted. Conflicts will cause an error.
+         * `UPSERT` - Objects are inserted or updated if they don't exists.
+         * `UPDATE` - Objects are updated. All primary keys must be present in request.
+         * `DELETE` - Objects are deleted. All primary keys must be present in request.
+    BulkUpdateRequest:
+      type: object
+      required:
+        - mode
+        - objects
+      properties:
+        mode:
+          $ref: "#/components/schemas/BulkUpdateMode"
+        objects:
+          description: Actual data object to process
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/UntypedDto"
     PagedResult:
       description: Paged list of items
       type: object

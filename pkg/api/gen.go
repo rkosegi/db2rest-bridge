@@ -21,6 +21,34 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Defines values for BulkUpdateMode.
+const (
+	DELETE BulkUpdateMode = "DELETE"
+	INSERT BulkUpdateMode = "INSERT"
+	UPDATE BulkUpdateMode = "UPDATE"
+	UPSERT BulkUpdateMode = "UPSERT"
+)
+
+// BulkUpdateMode Mode of update:
+//   - `INSERT` - Objects are inserted. Conflicts will cause an error.
+//   - `UPSERT` - Objects are inserted or updated if they don't exists.
+//   - `UPDATE` - Objects are updated. All primary keys must be present in request.
+//   - `DELETE` - Objects are deleted. All primary keys must be present in request.
+type BulkUpdateMode string
+
+// BulkUpdateRequest defines model for BulkUpdateRequest.
+type BulkUpdateRequest struct {
+	// Mode Mode of update:
+	//  * `INSERT` - Objects are inserted. Conflicts will cause an error.
+	//  * `UPSERT` - Objects are inserted or updated if they don't exists.
+	//  * `UPDATE` - Objects are updated. All primary keys must be present in request.
+	//  * `DELETE` - Objects are deleted. All primary keys must be present in request.
+	Mode BulkUpdateMode `json:"mode"`
+
+	// Objects Actual data object to process
+	Objects []UntypedDto `json:"objects"`
+}
+
 // NameList List of names, such as backends or entities
 type NameList = []string
 
@@ -78,6 +106,9 @@ type ListItemsParams struct {
 
 // CreateItemJSONRequestBody defines body for CreateItem for application/json ContentType.
 type CreateItemJSONRequestBody = UntypedDto
+
+// BulkUpdateJSONRequestBody defines body for BulkUpdate for application/json ContentType.
+type BulkUpdateJSONRequestBody = BulkUpdateRequest
 
 // UpdateItemByIdJSONRequestBody defines body for UpdateItemById for application/json ContentType.
 type UpdateItemByIdJSONRequestBody = UntypedDto
@@ -169,6 +200,11 @@ type ClientInterface interface {
 
 	CreateItem(ctx context.Context, backend Backend, entity Entity, body CreateItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// BulkUpdateWithBody request with any body
+	BulkUpdateWithBody(ctx context.Context, backend Backend, entity Entity, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	BulkUpdate(ctx context.Context, backend Backend, entity Entity, body BulkUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteItemById request
 	DeleteItemById(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -234,6 +270,30 @@ func (c *Client) CreateItemWithBody(ctx context.Context, backend Backend, entity
 
 func (c *Client) CreateItem(ctx context.Context, backend Backend, entity Entity, body CreateItemJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateItemRequest(c.Server, backend, entity, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) BulkUpdateWithBody(ctx context.Context, backend Backend, entity Entity, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBulkUpdateRequestWithBody(c.Server, backend, entity, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) BulkUpdate(ctx context.Context, backend Backend, entity Entity, body BulkUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBulkUpdateRequest(c.Server, backend, entity, body)
 	if err != nil {
 		return nil, err
 	}
@@ -530,6 +590,60 @@ func NewCreateItemRequestWithBody(server string, backend Backend, entity Entity,
 	return req, nil
 }
 
+// NewBulkUpdateRequest calls the generic BulkUpdate builder with application/json body
+func NewBulkUpdateRequest(server string, backend Backend, entity Entity, body BulkUpdateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewBulkUpdateRequestWithBody(server, backend, entity, "application/json", bodyReader)
+}
+
+// NewBulkUpdateRequestWithBody generates requests for BulkUpdate with any type of body
+func NewBulkUpdateRequestWithBody(server string, backend Backend, entity Entity, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backend", runtime.ParamLocationPath, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "entity", runtime.ParamLocationPath, entity)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/%s/bulk", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewDeleteItemByIdRequest generates requests for DeleteItemById
 func NewDeleteItemByIdRequest(server string, backend Backend, entity Entity, id string) (*http.Request, error) {
 	var err error
@@ -792,6 +906,11 @@ type ClientWithResponsesInterface interface {
 
 	CreateItemWithResponse(ctx context.Context, backend Backend, entity Entity, body CreateItemJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateItemResponse, error)
 
+	// BulkUpdateWithBodyWithResponse request with any body
+	BulkUpdateWithBodyWithResponse(ctx context.Context, backend Backend, entity Entity, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BulkUpdateResponse, error)
+
+	BulkUpdateWithResponse(ctx context.Context, backend Backend, entity Entity, body BulkUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*BulkUpdateResponse, error)
+
 	// DeleteItemByIdWithResponse request
 	DeleteItemByIdWithResponse(ctx context.Context, backend Backend, entity Entity, id string, reqEditors ...RequestEditorFn) (*DeleteItemByIdResponse, error)
 
@@ -889,6 +1008,27 @@ func (r CreateItemResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateItemResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type BulkUpdateResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r BulkUpdateResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BulkUpdateResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1023,6 +1163,23 @@ func (c *ClientWithResponses) CreateItemWithResponse(ctx context.Context, backen
 		return nil, err
 	}
 	return ParseCreateItemResponse(rsp)
+}
+
+// BulkUpdateWithBodyWithResponse request with arbitrary body returning *BulkUpdateResponse
+func (c *ClientWithResponses) BulkUpdateWithBodyWithResponse(ctx context.Context, backend Backend, entity Entity, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BulkUpdateResponse, error) {
+	rsp, err := c.BulkUpdateWithBody(ctx, backend, entity, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBulkUpdateResponse(rsp)
+}
+
+func (c *ClientWithResponses) BulkUpdateWithResponse(ctx context.Context, backend Backend, entity Entity, body BulkUpdateJSONRequestBody, reqEditors ...RequestEditorFn) (*BulkUpdateResponse, error) {
+	rsp, err := c.BulkUpdate(ctx, backend, entity, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBulkUpdateResponse(rsp)
 }
 
 // DeleteItemByIdWithResponse request returning *DeleteItemByIdResponse
@@ -1173,6 +1330,22 @@ func ParseCreateItemResponse(rsp *http.Response) (*CreateItemResponse, error) {
 	return response, nil
 }
 
+// ParseBulkUpdateResponse parses an HTTP response from a BulkUpdateWithResponse call
+func ParseBulkUpdateResponse(rsp *http.Response) (*BulkUpdateResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BulkUpdateResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseDeleteItemByIdResponse parses an HTTP response from a DeleteItemByIdWithResponse call
 func ParseDeleteItemByIdResponse(rsp *http.Response) (*DeleteItemByIdResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -1271,6 +1444,9 @@ type ServerInterface interface {
 	// Create new entity item
 	// (POST /{backend}/{entity})
 	CreateItem(w http.ResponseWriter, r *http.Request, backend Backend, entity Entity)
+	// Perform bulk update
+	// (POST /{backend}/{entity}/bulk)
+	BulkUpdate(w http.ResponseWriter, r *http.Request, backend Backend, entity Entity)
 	// Delete entity item by ID
 	// (DELETE /{backend}/{entity}/{id})
 	DeleteItemById(w http.ResponseWriter, r *http.Request, backend Backend, entity Entity, id string)
@@ -1427,6 +1603,40 @@ func (siw *ServerInterfaceWrapper) CreateItem(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateItem(w, r, backend, entity)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BulkUpdate operation middleware
+func (siw *ServerInterfaceWrapper) BulkUpdate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "backend" -------------
+	var backend Backend
+
+	err = runtime.BindStyledParameterWithOptions("simple", "backend", mux.Vars(r)["backend"], &backend, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "backend", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "entity" -------------
+	var entity Entity
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entity", mux.Vars(r)["entity"], &entity, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entity", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BulkUpdate(w, r, backend, entity)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1729,6 +1939,8 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/{backend}/{entity}", wrapper.CreateItem).Methods("POST")
 
+	r.HandleFunc(options.BaseURL+"/{backend}/{entity}/bulk", wrapper.BulkUpdate).Methods("POST")
+
 	r.HandleFunc(options.BaseURL+"/{backend}/{entity}/{id}", wrapper.DeleteItemById).Methods("DELETE")
 
 	r.HandleFunc(options.BaseURL+"/{backend}/{entity}/{id}", wrapper.GetItemById).Methods("GET")
@@ -1743,35 +1955,40 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

@@ -133,12 +133,28 @@ func createUpdateQuery(entity, idColumn string, body api.UntypedDto) (string, []
 	return sb.String(), values
 }
 
-func createDeleteQuery(entity, idColumn string) string {
+func createDeleteQueryPrefix(entity string) string {
 	sb := strings.Builder{}
 	sb.WriteString("DELETE FROM `")
 	sb.WriteString(entity)
 	sb.WriteString("` ")
+	return sb.String()
+}
+
+// createSingleDeleteQuery generates `DELETE FROM <entity> WHERE <id> = ? LIMIT 1` query
+func createSingleDeleteQuery(entity, idColumn string) string {
+	sb := strings.Builder{}
+	sb.WriteString(createDeleteQueryPrefix(entity))
 	sb.WriteString(createSingleItemFilter(idColumn))
+	return sb.String()
+}
+
+// createMultiDeleteQuery generates `DELETE FROM <entity> WHERE <id> IN (?,?,?....?)` query.
+// idsCount should be > 1
+func createMultiDeleteQuery(entity, idColumn string, idsCount int) string {
+	sb := strings.Builder{}
+	sb.WriteString(createDeleteQueryPrefix(entity))
+	sb.WriteString(createMultiItemFilter(idColumn, idsCount))
 	return sb.String()
 }
 
@@ -159,5 +175,20 @@ func createSingleItemFilter(idColumn string) string {
 	sb.WriteRune('`')
 	sb.WriteString(" = ?")
 	sb.WriteString(" LIMIT 1")
+	return sb.String()
+}
+
+// createMultiItemFilter generates `WHERE <id> IN (?,?,...?)` filter.
+// caller must ensure that idsCount > 1, either by falling back to createSingleItemFilter for (idsCount==1) or
+// by reporting error.
+func createMultiItemFilter(idColumn string, idsCount int) string {
+	sb := strings.Builder{}
+	sb.WriteString("WHERE ")
+	sb.WriteRune('`')
+	sb.WriteString(idColumn)
+	sb.WriteRune('`')
+	sb.WriteString(" IN (")
+	sb.WriteString(strings.Repeat("?,", idsCount-1))
+	sb.WriteString("?)")
 	return sb.String()
 }
