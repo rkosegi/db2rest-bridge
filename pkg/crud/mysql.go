@@ -25,6 +25,7 @@ import (
 	"io"
 	"log/slog"
 	"strconv"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jellydator/ttlcache/v3"
@@ -40,6 +41,7 @@ var (
 	errUpdateNotAllowed = errors.New("update is not allowed")
 	errDeleteNotAllowed = errors.New("delete is not allowed")
 	errNoObj            = errors.New("require at least one object")
+	dateTimeLayouts     = []string{time.RFC3339, time.DateOnly}
 )
 
 type bedb struct {
@@ -225,6 +227,15 @@ func (be *bedb) Update(entity, id string, body api.UntypedDto) (api.UntypedDto, 
 func remapValue(v interface{}, ct *sql.ColumnType) interface{} {
 	switch v := v.(type) {
 	case string:
+		if ct.DatabaseTypeName() == "DATETIME" {
+			for _, layout := range dateTimeLayouts {
+				t, err := time.Parse(layout, v)
+				if err == nil {
+					return t
+				}
+			}
+			return v
+		}
 		if ct.DatabaseTypeName() == "BLOB" {
 			bytes, err := base64.StdEncoding.DecodeString(v)
 			if err != nil {

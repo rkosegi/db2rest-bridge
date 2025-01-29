@@ -53,7 +53,7 @@ func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, int, 
 		}
 		res = append(res, dto)
 	}
-	return res, int(*resp.JSON200.TotalCount), nil
+	return res, *resp.JSON200.TotalCount, nil
 }
 
 func (g *generic[T]) Create(ctx context.Context, t *T) (*T, error) {
