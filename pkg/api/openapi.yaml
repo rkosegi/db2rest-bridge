@@ -178,6 +178,8 @@ paths:
           description: Bulk operation completed successfully
         500:
           description: Internal error while processing batch
+      tags:
+        - crud
   /{backend}/{entity}/{id}:
     parameters:
       - $ref: '#/components/parameters/backend'
@@ -278,14 +280,16 @@ components:
       type: string
       enum:
         - INSERT
-        - UPSERT
+        - REPLACE
         - UPDATE
         - DELETE
       description: >
         Mode of update:
          * `INSERT` - Objects are inserted. Conflicts will cause an error.
-         * `UPSERT` - Objects are inserted or updated if they don't exists.
+         * `REPLACE` - Objects are removed prior to creating if they exists.
+                      All primary keys must be present in request.
          * `UPDATE` - Objects are updated. All primary keys must be present in request.
+                      Non-existent objects are ignored.
          * `DELETE` - Objects are deleted. All primary keys must be present in request.
     BulkUpdateRequest:
       type: object

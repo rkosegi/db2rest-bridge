@@ -77,11 +77,20 @@ func mapEntity(rows *sql.Rows, columns []string, columnTypes []*sql.ColumnType) 
 	return res, nil
 }
 
+func createReplaceQuery(entity string, body api.UntypedDto) (string, []interface{}) {
+	return createInsertOrReplaceQuery("REPLACE", entity, body)
+}
+
 func createInsertQuery(entity string, body api.UntypedDto) (string, []interface{}) {
+	return createInsertOrReplaceQuery("INSERT", entity, body)
+}
+
+func createInsertOrReplaceQuery(verb, entity string, body api.UntypedDto) (string, []interface{}) {
 	sb := strings.Builder{}
 	csb := strings.Builder{}
 	vsb := strings.Builder{}
-	sb.WriteString("INSERT INTO `")
+	sb.WriteString(verb)
+	sb.WriteString(" INTO `")
 	sb.WriteString(entity)
 	sb.WriteString("` ")
 	cols := lo.Keys(body)

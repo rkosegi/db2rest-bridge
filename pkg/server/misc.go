@@ -65,3 +65,15 @@ func loggingMiddleware(logger *slog.Logger) api.MiddlewareFunc {
 		})
 	}
 }
+
+func extractIds(objs []api.UntypedDto, idCol string) ([]interface{}, error) {
+	var ids []interface{}
+	for _, obj := range objs {
+		if id, ok := obj[idCol]; ok {
+			ids = append(ids, id)
+		} else {
+			return nil, fmt.Errorf("can't extract ID column (%s) value from object %v", idCol, obj)
+		}
+	}
+	return ids, nil
+}

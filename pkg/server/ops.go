@@ -150,6 +150,7 @@ func (rs *restServer) BulkUpdate(w http.ResponseWriter, r *http.Request, backend
 		var (
 			err  error
 			body api.BulkUpdateRequest
+			ids  []interface{}
 		)
 		if err = json.NewDecoder(req.Body).Decode(&body); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
@@ -158,15 +159,13 @@ func (rs *restServer) BulkUpdate(w http.ResponseWriter, r *http.Request, backend
 		idCol := rs.cfg.Backends[backend].IdColumn(entity)
 		switch body.Mode {
 		case api.DELETE:
-			err = c.MultiDelete(entity, lo.Map(body.Objects, func(item api.UntypedDto, _ int) string {
-				return item[idCol].(string)
-			}))
+			if ids, err = extractIds(body.Objects, idCol); err == nil {
+				err = c.MultiDelete(entity, ids)
+			}
 		case api.UPDATE:
-			c.MultiUpdate(entity, lo.Map(body.Objects, func(item api.UntypedDto, _ int) api.UntypedDto {
-				return (item).(map[string]interface{})
-			})
-		case api.UPSERT:
-		case api.INSERT:
+			err = c.MultiUpdate(entity, body.Objects)
+		case api.REPLACE, api.INSERT:
+			err = c.MultiCreate(entity, body.Mode == api.REPLACE, body.Objects)
 		}
 
 		if err != nil {

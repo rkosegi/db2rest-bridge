@@ -55,9 +55,12 @@ type Interface interface {
 	// Delete deletes item by its ID
 	Delete(entity string, id string) error
 	// MultiDelete deletes items that has provided ids
-	MultiDelete(entity string, ids []string) error
+	MultiDelete(entity string, ids []interface{}) error
 	// MultiUpdate updates multiple items in one shot
 	MultiUpdate(entity string, objs []api.UntypedDto) error
+	// MultiCreate creates multiple items in one shot
+	// if replace is set to true, then items are removed in backend prior to creating, if they exist.
+	MultiCreate(entity string, replace bool, objs []api.UntypedDto) error
 }
 
 type NameToCrudMap map[string]Interface

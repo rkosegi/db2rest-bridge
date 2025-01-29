@@ -269,7 +269,7 @@ func (be *bedb) Create(entity string, body api.UntypedDto) (api.UntypedDto, erro
 	return be.fetchOneItem(entity, strconv.FormatInt(id, 10), true)
 }
 
-func (be *bedb) MultiDelete(entity string, ids []string) error {
+func (be *bedb) MultiDelete(entity string, ids []interface{}) error {
 	if !*be.config.Delete {
 		return errDeleteNotAllowed
 	}
@@ -277,12 +277,10 @@ func (be *bedb) MultiDelete(entity string, ids []string) error {
 	case ic == 0:
 		return errNoObj
 	case ic == 1:
-		return be.Delete(entity, ids[0])
+		return be.Delete(entity, fmt.Sprintf("%v", ids[0]))
 	default:
 		_, err := be.config.DB().Exec(be.logSQL(
-			createMultiDeleteQuery(entity, be.config.IdColumn(entity), ic)), lo.Map(ids, func(item string, _ int) any {
-			return item
-		})...)
+			createMultiDeleteQuery(entity, be.config.IdColumn(entity), ic)), ids...)
 		return err
 	}
 }
@@ -318,7 +316,40 @@ func (be *bedb) MultiUpdate(entity string, objs []api.UntypedDto) error {
 	return tx.Commit()
 }
 
-func (be *bedb) MultiReplace(entity string, objs []api.UntypedDto) ([]api.UntypedDto, error) {
+func (be *bedb) MultiCreate(entity string, replace bool, objs []api.UntypedDto) error {
+	var (
+		err error
+		tx  *sql.Tx
+	)
+	if !*be.config.Create {
+		return errCreateNotAllowed
+	}
 
-	return nil, nil
+	ctx := context.Background()
+	tx, err = be.config.DB().BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return err
+	}
+	for _, obj := range objs {
+		md := be.mdCache.Get(entity)
+		if md != nil {
+			obj = remapBody(md, obj)
+		}
+		var (
+			qry    string
+			values []interface{}
+		)
+		if replace {
+			qry, values = createReplaceQuery(entity, obj)
+		} else {
+			qry, values = createInsertQuery(entity, obj)
+		}
+
+		if _, err = tx.ExecContext(ctx, be.logSQL(qry), values...); err != nil {
+			be.l.Warn("query execution failed, rolling back", "err", err)
+			return tx.Rollback()
+		}
+	}
+
+	return tx.Commit()
 }
