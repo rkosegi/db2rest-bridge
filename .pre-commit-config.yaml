@@ -11,19 +11,36 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-      - id: check-merge-conflict
       - id: end-of-file-fixer
       - id: mixed-line-ending
-  - repo: https://github.com/gruntwork-io/pre-commit
-    rev: v0.1.29
+      - id: check-merge-conflict
+      - id: pretty-format-json
+        args:
+          - --autofix
+          - --indent=2
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.1.5
     hooks:
-      - id: goimports
-      - id: gofmt
-      - id: helmlint
+      - id: golangci-lint
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-mod-tidy
+      - id: go-fmt
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.37.0
+    hooks:
+      - id: yamllint
+        files: testdata/.*\.yaml
+        args:
+          - -c=.yamllint-config.yaml
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.25.1
+    hooks:
+      - id: gitleaks

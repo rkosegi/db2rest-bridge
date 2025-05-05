@@ -1,4 +1,4 @@
-# Copyright 2024 Richard Kosegi
+# Copyright 2025 Richard Kosegi
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,26 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-version: "2"
-linters:
-  default: none
-  enable:
-    - staticcheck
-  exclusions:
-    generated: lax
-    presets:
-      - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
-formatters:
-  exclusions:
-    generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+extends: default
+rules:
+  line-length:
+    max: 120
+    level: warning
