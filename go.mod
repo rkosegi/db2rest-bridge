@@ -27,7 +27,7 @@ require (
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/prometheus/client_golang v1.22.0
 	github.com/rkosegi/slog-config v0.0.0-20250516142023-81f4560840e9
-	github.com/samber/lo v1.50.0
+	github.com/samber/lo v1.51.0
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/multierr v1.11.0
 	gopkg.in/yaml.v3 v3.0.1
