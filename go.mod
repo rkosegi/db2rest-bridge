@@ -18,7 +18,7 @@ go 1.24.1
 
 require (
 	github.com/getkin/kin-openapi v0.132.0
-	github.com/go-sql-driver/mysql v1.9.2
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/jarcoal/httpmock v1.4.0
