@@ -14,7 +14,7 @@
 
 module github.com/rkosegi/db2rest-bridge
 
-go 1.24.1
+go 1.24.2
 
 require (
 	github.com/getkin/kin-openapi v0.132.0
