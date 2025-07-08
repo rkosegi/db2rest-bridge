@@ -16,6 +16,10 @@ module github.com/rkosegi/db2rest-bridge
 
 go 1.24.2
 
+replace github.com/chenzhuoyu/iasm v0.9.0 => github.com/cloudwego/iasm v0.2.0
+
+tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
+
 require (
 	github.com/getkin/kin-openapi v0.132.0
 	github.com/go-sql-driver/mysql v1.9.3
@@ -23,7 +27,6 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/jarcoal/httpmock v1.4.0
 	github.com/jellydator/ttlcache/v3 v3.4.0
-	github.com/oapi-codegen/oapi-codegen/v2 v2.4.1
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/prometheus/client_golang v1.22.0
 	github.com/rkosegi/slog-config v0.0.0-20250516142023-81f4560840e9
@@ -48,6 +51,7 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/oapi-codegen/oapi-codegen/v2 v2.4.1 // indirect
 	github.com/oasdiff/yaml v0.0.0-20250309154309-f31be36b4037 // indirect
 	github.com/oasdiff/yaml3 v0.0.0-20250309153720-d2182401db90 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
