@@ -27,7 +27,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/jarcoal/httpmock v1.4.0
 	github.com/jellydator/ttlcache/v3 v3.4.0
-	github.com/oapi-codegen/runtime v1.1.1
+	github.com/oapi-codegen/runtime v1.1.2
 	github.com/prometheus/client_golang v1.22.0
 	github.com/rkosegi/slog-config v0.0.0-20250516142023-81f4560840e9
 	github.com/samber/lo v1.51.0
