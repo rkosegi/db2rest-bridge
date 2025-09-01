@@ -14,7 +14,7 @@
 
 module github.com/rkosegi/db2rest-bridge
 
-go 1.24.2
+go 1.25.0
 
 replace github.com/chenzhuoyu/iasm v0.9.0 => github.com/cloudwego/iasm v0.2.0
 
