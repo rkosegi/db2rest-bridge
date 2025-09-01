@@ -29,7 +29,7 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/prometheus/client_golang v1.23.0
-	github.com/rkosegi/slog-config v0.0.0-20250720232421-a7890a122727
+	github.com/rkosegi/slog-config v0.0.0-20250820232402-93148a62e0e1
 	github.com/samber/lo v1.51.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/multierr v1.11.0
@@ -60,6 +60,7 @@ require (
 	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/speakeasy-api/openapi-overlay v0.9.0 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
 	github.com/woodsbury/decimal128 v1.3.0 // indirect
 	golang.org/x/mod v0.21.0 // indirect
