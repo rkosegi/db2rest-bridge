@@ -27,7 +27,7 @@ import (
 
 func mapValue(ct *sql.ColumnType, val interface{}) interface{} {
 	switch ct.DatabaseTypeName() {
-	case "DATETIME":
+	case "DATETIME", "TIMESTAMP":
 		x := &sql.NullTime{}
 		if err := x.Scan(val); err == nil {
 			return x.Time

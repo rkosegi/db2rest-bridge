@@ -227,7 +227,7 @@ func (be *bedb) Update(entity, id string, body api.UntypedDto) (api.UntypedDto, 
 func remapValue(v interface{}, ct *sql.ColumnType) interface{} {
 	switch v := v.(type) {
 	case string:
-		if ct.DatabaseTypeName() == "DATETIME" {
+		if ct.DatabaseTypeName() == "DATETIME" || ct.DatabaseTypeName() == "TIMESTAMP" {
 			for _, layout := range dateTimeLayouts {
 				t, err := time.Parse(layout, v)
 				if err == nil {
