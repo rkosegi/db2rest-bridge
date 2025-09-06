@@ -31,6 +31,9 @@ import (
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/crud"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
+	"github.com/rkosegi/go-http-commons/middlewares"
+	"github.com/rkosegi/go-http-commons/openapi"
+	"github.com/rkosegi/go-http-commons/output"
 )
 
 var (
@@ -49,6 +52,8 @@ var (
 		Name:      "http_response_bytes",
 		Help:      "Total bytes of HTTP responses.",
 	}, []string{"backend", "entity", "method", "status"})
+
+	out = output.NewBuilder().Build()
 )
 
 type restServer struct {
@@ -62,18 +67,6 @@ func (rs *restServer) Close() error {
 	return rs.crudMap.Close()
 }
 
-func (rs *restServer) specHandler() func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if data, err := api.PathToRawSpec(r.URL.Path)[r.URL.Path](); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write(data)
-		}
-	}
-}
-
 func (rs *restServer) Run() (err error) {
 	rs.crudMap = make(crud.NameToCrudMap)
 	for n, be := range rs.cfg.Backends {
@@ -85,7 +78,7 @@ func (rs *restServer) Run() (err error) {
 		rs.crudMap[n] = crud.New(be, n, rs.logger)
 	}
 	rs.logger.Info("starting server", "listen address", rs.cfg.Server.HTTPListenAddress)
-	middlewares := []api.MiddlewareFunc{loggingMiddleware(rs.logger.With("type", "access log"))}
+	mws := []api.MiddlewareFunc{middlewares.NewLoggingBuilder().WithLogger(rs.logger).Build()}
 
 	cors := handlers.CORS(
 		handlers.AllowedMethods([]string{
@@ -101,10 +94,10 @@ func (rs *restServer) Run() (err error) {
 	)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/spec/opeanapi.v1.json", rs.specHandler())
+	r.HandleFunc("/spec/opeanapi.v1.json", openapi.SpecHandler(api.PathToRawSpec))
 
 	if rs.cfg.Server.Telemetry.Enabled {
-		middlewares = append(middlewares, func(next http.Handler) http.Handler {
+		mws = append(mws, func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				p := r.URL.Path
 				if strings.HasPrefix(p, *rs.cfg.Server.APiPrefix) {
@@ -133,7 +126,7 @@ func (rs *restServer) Run() (err error) {
 		Handler: cors(api.HandlerWithOptions(rs, api.GorillaServerOptions{
 			BaseURL:     *rs.cfg.Server.APiPrefix,
 			BaseRouter:  r,
-			Middlewares: middlewares,
+			Middlewares: mws,
 		})),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,

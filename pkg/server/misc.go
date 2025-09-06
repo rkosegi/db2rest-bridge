@@ -17,9 +17,7 @@ limitations under the License.
 package server
 
 import (
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
@@ -45,25 +43,6 @@ func (rs *restServer) handleItem(writer http.ResponseWriter, request *http.Reque
 	rs.handleEntity(writer, request, backend, entity, func(c crud.Interface, entity string, writer http.ResponseWriter, request *http.Request) {
 		handler(c, entity, item, writer, request)
 	})
-}
-
-func sendJson(w http.ResponseWriter, v interface{}, status int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	err := json.NewEncoder(w).Encode(v)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(err.Error()))
-	}
-}
-
-func loggingMiddleware(logger *slog.Logger) api.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger.Info("http req", "method", r.Method, "path", r.URL.Path)
-			next.ServeHTTP(w, r)
-		})
-	}
 }
 
 func extractIds(objs []api.UntypedDto, idCol string) ([]interface{}, error) {
