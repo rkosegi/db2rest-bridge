@@ -121,6 +121,8 @@ github.com/prometheus/common v0.66.0 h1:K/rJPHrG3+AoQs50r2+0t7zMnMzek2Vbv31OFVsM
 github.com/prometheus/common v0.66.0/go.mod h1:Ux6NtV1B4LatamKE63tJBntoxD++xmtI/lK0VtEplN4=
 github.com/prometheus/procfs v0.16.1 h1:hZ15bTNuirocR6u0JZ6BAHHmwS1p8B4P6MRqxtzMyRg=
 github.com/prometheus/procfs v0.16.1/go.mod h1:teAbpZRB1iIAJYREa1LsoWUXykVXA1KlTmWl8x/U+Is=
+github.com/rkosegi/go-http-commons v0.0.0-20250907101307-ca23e0f01433 h1:m204OaH6B+tgwFBt1y+H8y6MpwW+Z/3dQeor0Sn5B5I=
+github.com/rkosegi/go-http-commons v0.0.0-20250907101307-ca23e0f01433/go.mod h1:qp/llW3hlqzpcGlkMFtY/BLjdk+54AnBydz3Gyqn/0c=
 github.com/rkosegi/slog-config v0.0.0-20250820232402-93148a62e0e1 h1:N4z0fzz3dpUX9XmNw58Jn2AYsV/e26IurW30cTH37Jc=
 github.com/rkosegi/slog-config v0.0.0-20250820232402-93148a62e0e1/go.mod h1:x1/yi2ph+vCqUgWII3kuCdSuXSVwe1IMzOmAd5Ib0is=
 github.com/rogpeppe/go-internal v1.12.0 h1:exVL4IDcn6na9z1rAb56Vxr+CgyK3nn3O+epU5NdKM8=

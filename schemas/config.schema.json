@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "backendConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "conn_max_idle_time": {
+          "type": "string"
+        },
+        "conn_max_lifetime": {
+          "type": "string"
+        },
+        "create": {
+          "type": "boolean"
+        },
+        "delete": {
+          "type": "boolean"
+        },
+        "driver": {
+          "type": "string"
+        },
+        "dsn": {
+          "type": "string"
+        },
+        "id_map": {
+          "additionalProperties": true,
+          "description": "Optional mapping from entity (table) name to ID column.\nIf not specified, then 'id' is assumed"
+        },
+        "max_idle_connections": {
+          "type": "integer"
+        },
+        "max_open_connections": {
+          "type": "integer"
+        },
+        "read": {
+          "type": "boolean"
+        },
+        "update": {
+          "type": "boolean"
+        }
+      }
+    },
+    "config": {
+      "additionalProperties": false,
+      "properties": {
+        "backends": {
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[\\w-]{1,63}$": {
+              "$ref": "#/$defs/backendConfig"
+            }
+          },
+          "type": "object"
+        },
+        "logging": {
+          "$ref": "#/$defs/loggingConfig"
+        },
+        "server": {
+          "$ref": "https://raw.githubusercontent.com/rkosegi/go-http-commons/refs/heads/main/schemas/server.config.json"
+        }
+      },
+      "required": [
+        "backends",
+        "server"
+      ]
+    },
+    "loggingConfig": {
+      "additionalProperties": false,
+      "description": "Logging configuration",
+      "properties": {
+        "format": {
+          "type": "string"
+        },
+        "level": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/rkosegi/db2rest-bridge/schemas/config",
+  "$ref": "#/$defs/config",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Configuration schema",
+  "type": "object"
+}

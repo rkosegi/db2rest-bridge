@@ -30,16 +30,16 @@ import (
 func (rs *restServer) ListBackends(w http.ResponseWriter, _ *http.Request) {
 	bes := lo.Keys(rs.cfg.Backends)
 	slices.Sort(bes)
-	sendJson(w, bes, http.StatusOK)
+	out.SendWithStatus(w, bes, http.StatusOK)
 }
 
 func (rs *restServer) ListEntities(w http.ResponseWriter, r *http.Request, backend string) {
 	rs.handleBackend(w, r, backend, func(c crud.Interface, writer http.ResponseWriter, _ *http.Request) {
 		if entities, err := c.ListEntities(); err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 		} else {
 			slices.Sort(entities)
-			sendJson(writer, entities, http.StatusOK)
+			out.SendWithStatus(writer, entities, http.StatusOK)
 		}
 	})
 }
@@ -52,14 +52,14 @@ func (rs *restServer) ListItems(w http.ResponseWriter, r *http.Request, backend 
 			res *crud.PagedResult
 		)
 		if qry, err = query.FromParams(params); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
+			out.SendWithStatus(writer, err, http.StatusBadRequest)
 			return
 		}
 		if res, err = c.ListItems(entity, qry); err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 			return
 		}
-		sendJson(writer, res, http.StatusOK)
+		out.SendWithStatus(writer, res, http.StatusOK)
 	})
 }
 
@@ -68,12 +68,15 @@ func (rs *restServer) CreateItem(w http.ResponseWriter, r *http.Request, backend
 		var err error
 		body := make(api.UntypedDto)
 		if err = json.NewDecoder(request.Body).Decode(&body); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
+			rs.logger.Error("can't decode body", "backend", backend, "entity", entity, "error", err)
+			out.SendWithStatus(writer, err, http.StatusBadRequest)
+			return
 		} else {
 			if body, err = c.Create(entity, body); err != nil {
-				http.Error(writer, err.Error(), http.StatusInternalServerError)
+				rs.logger.Error("can't create item", "backend", backend, "entity", entity, "error", err)
+				out.SendWithStatus(writer, err, http.StatusInternalServerError)
 			} else {
-				sendJson(writer, body, http.StatusCreated)
+				out.SendWithStatus(writer, body, http.StatusCreated)
 			}
 		}
 	})
@@ -82,11 +85,11 @@ func (rs *restServer) CreateItem(w http.ResponseWriter, r *http.Request, backend
 func (rs *restServer) GetItemById(w http.ResponseWriter, r *http.Request, backend string, entity string, id string) {
 	rs.handleItem(w, r, backend, entity, id, func(c crud.Interface, entity, id string, writer http.ResponseWriter, _ *http.Request) {
 		if obj, err := c.Get(entity, id); err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 			return
 		} else {
 			if obj != nil {
-				sendJson(writer, obj, http.StatusOK)
+				out.SendWithStatus(writer, obj, http.StatusOK)
 			} else {
 				w.WriteHeader(http.StatusNotFound)
 			}
@@ -97,7 +100,7 @@ func (rs *restServer) GetItemById(w http.ResponseWriter, r *http.Request, backen
 func (rs *restServer) ExistsItemById(w http.ResponseWriter, r *http.Request, backend string, entity string, id string) {
 	rs.handleItem(w, r, backend, entity, id, func(c crud.Interface, entity, id string, writer http.ResponseWriter, _ *http.Request) {
 		if exists, err := c.Exists(entity, id); err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 		} else {
 			if exists {
 				writer.WriteHeader(http.StatusNoContent)
@@ -116,11 +119,11 @@ func (rs *restServer) UpdateItemById(w http.ResponseWriter, r *http.Request, bac
 		)
 		body := make(api.UntypedDto)
 		if err = json.NewDecoder(req.Body).Decode(&body); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
+			out.SendWithStatus(writer, err, http.StatusBadRequest)
 			return
 		}
 		if exists, err = c.Exists(entity, id); err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 			return
 		}
 		if !exists {
@@ -128,17 +131,17 @@ func (rs *restServer) UpdateItemById(w http.ResponseWriter, r *http.Request, bac
 			return
 		}
 		if body, err = c.Update(entity, id, body); err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 			return
 		}
-		sendJson(w, body, http.StatusAccepted)
+		out.SendWithStatus(w, body, http.StatusAccepted)
 	})
 }
 
 func (rs *restServer) DeleteItemById(w http.ResponseWriter, r *http.Request, backend string, entity string, id string) {
 	rs.handleItem(w, r, backend, entity, id, func(c crud.Interface, entity, id string, writer http.ResponseWriter, _ *http.Request) {
 		if err := c.Delete(entity, id); err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 		} else {
 			writer.WriteHeader(http.StatusNoContent)
 		}
@@ -153,7 +156,7 @@ func (rs *restServer) BulkUpdate(w http.ResponseWriter, r *http.Request, backend
 			ids  []interface{}
 		)
 		if err = json.NewDecoder(req.Body).Decode(&body); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
+			out.SendWithStatus(writer, err, http.StatusBadRequest)
 			return
 		}
 		idCol := rs.cfg.Backends[backend].IdColumn(entity)
@@ -169,7 +172,7 @@ func (rs *restServer) BulkUpdate(w http.ResponseWriter, r *http.Request, backend
 		}
 
 		if err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 			return
 		}
 	})

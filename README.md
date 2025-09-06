@@ -8,7 +8,7 @@ Currently only MySQL/MariaDB backend is supported.
 ```yaml
 ---
 server:
-  http_listen_address: 0.0.0.0:22001
+  listen_address: 0.0.0.0:22001
   cors:
     allowed_origins: ["*"]
     max_age: 1200

@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/rkosegi/db2rest-bridge/refs/heads/main/schemas/config.schema.json
 server:
-  http_listen_address: 0.0.0.0:22001
+  listen_address: 0.0.0.0:22001
   cors:
     allowed_origins: ["*"]
     max_age: 1200

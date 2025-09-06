@@ -31,6 +31,9 @@ import (
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/crud"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
+	"github.com/rkosegi/go-http-commons/middlewares"
+	"github.com/rkosegi/go-http-commons/openapi"
+	"github.com/rkosegi/go-http-commons/output"
 )
 
 var (
@@ -49,6 +52,8 @@ var (
 		Name:      "http_response_bytes",
 		Help:      "Total bytes of HTTP responses.",
 	}, []string{"backend", "entity", "method", "status"})
+
+	out = output.NewBuilder().Build()
 )
 
 type restServer struct {
@@ -62,18 +67,6 @@ func (rs *restServer) Close() error {
 	return rs.crudMap.Close()
 }
 
-func (rs *restServer) specHandler() func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if data, err := api.PathToRawSpec(r.URL.Path)[r.URL.Path](); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write(data)
-		}
-	}
-}
-
 func (rs *restServer) Run() (err error) {
 	rs.crudMap = make(crud.NameToCrudMap)
 	for n, be := range rs.cfg.Backends {
@@ -84,8 +77,8 @@ func (rs *restServer) Run() (err error) {
 		}
 		rs.crudMap[n] = crud.New(be, n, rs.logger)
 	}
-	rs.logger.Info("starting server", "listen address", rs.cfg.Server.HTTPListenAddress)
-	middlewares := []api.MiddlewareFunc{loggingMiddleware(rs.logger.With("type", "access log"))}
+	rs.logger.Info("starting server", "listen address", rs.cfg.Server.ListenAddress)
+	mws := []api.MiddlewareFunc{middlewares.NewLoggingBuilder().WithLogger(rs.logger).Build()}
 
 	cors := handlers.CORS(
 		handlers.AllowedMethods([]string{
@@ -95,57 +88,51 @@ func (rs *restServer) Run() (err error) {
 			http.MethodPut,
 			http.MethodDelete,
 		}),
-		handlers.AllowedOrigins(rs.cfg.Server.CorsConfig.AllowedOrigins),
-		handlers.MaxAge(rs.cfg.Server.CorsConfig.MaxAge),
+		handlers.AllowedOrigins(rs.cfg.Server.Cors.AllowedOrigins),
+		handlers.MaxAge(rs.cfg.Server.Cors.MaxAge),
 		handlers.AllowedHeaders([]string{"Content-Type"}),
 	)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/spec/opeanapi.v1.json", rs.specHandler())
+	r.HandleFunc("/spec/opeanapi.v1.json", openapi.SpecHandler(api.PathToRawSpec))
 
 	if rs.cfg.Server.Telemetry.Enabled {
-		middlewares = append(middlewares, func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				p := r.URL.Path
-				if strings.HasPrefix(p, *rs.cfg.Server.APiPrefix) {
-					p = strings.TrimPrefix(p, *rs.cfg.Server.APiPrefix)
-					p = strings.TrimPrefix(p, "/")
-					start := time.Now()
-					ir := &interceptedResp{delegate: w}
-					next.ServeHTTP(ir, r)
-					if parts := strings.SplitN(p, "/", 3); len(parts) > 1 {
-						httpDuration.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Observe(start.Sub(time.Now()).Seconds())
-						if r.ContentLength > 0 {
-							httpRequestBytes.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Add(float64(r.ContentLength))
-						}
-						httpResponseBytes.WithLabelValues(parts[0], parts[1], r.Method, strconv.Itoa(ir.Status())).Add(float64(ir.Written()))
+		mws = append(mws, middlewares.NewInterceptorBuilder().
+			WithRequestFilter(func(r *http.Request) bool {
+				return strings.HasPrefix(r.URL.Path, *rs.cfg.Server.APIPrefix)
+			}).
+			WithCallback(func(resp middlewares.InterceptedResponse) {
+				req := resp.Request()
+				p := req.URL.Path
+				p = strings.TrimPrefix(p, *rs.cfg.Server.APIPrefix)
+				p = strings.TrimPrefix(p, "/")
+				start := time.Now()
+				if parts := strings.SplitN(p, "/", 3); len(parts) > 1 {
+					httpDuration.WithLabelValues(parts[0], parts[1], req.Method,
+						strconv.Itoa(resp.Status())).Observe(start.Sub(time.Now()).Seconds())
+					if req.ContentLength > 0 {
+						httpRequestBytes.WithLabelValues(parts[0], parts[1], req.Method,
+							strconv.Itoa(resp.Status())).Add(float64(req.ContentLength))
 					}
-				} else {
-					next.ServeHTTP(w, r)
+					httpResponseBytes.WithLabelValues(parts[0], parts[1], req.Method,
+						strconv.Itoa(resp.Status())).Add(float64(resp.Written()))
 				}
-			})
-		})
-		r.Handle(rs.cfg.Server.Telemetry.Path, promhttp.Handler())
+			}).
+			Build())
+		r.Handle(*rs.cfg.Server.Telemetry.Path, promhttp.Handler())
 	}
 
 	rs.server = &http.Server{
-		Addr: rs.cfg.Server.HTTPListenAddress,
+		Addr: rs.cfg.Server.ListenAddress,
 		Handler: cors(api.HandlerWithOptions(rs, api.GorillaServerOptions{
-			BaseURL:     *rs.cfg.Server.APiPrefix,
+			BaseURL:     *rs.cfg.Server.APIPrefix,
 			BaseRouter:  r,
-			Middlewares: middlewares,
+			Middlewares: mws,
 		})),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  30 * time.Second,
 	}
 
-	if rs.cfg.Server.HTTPTLSConfig != nil {
-		return rs.server.ListenAndServeTLS(
-			rs.cfg.Server.HTTPTLSConfig.TLSCertPath,
-			rs.cfg.Server.HTTPTLSConfig.TLSKeyPath,
-		)
-	} else {
-		return rs.server.ListenAndServe()
-	}
+	return rs.cfg.Server.RunForever(rs.server)
 }

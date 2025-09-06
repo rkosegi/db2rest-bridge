@@ -37,6 +37,13 @@ repos:
         files: testdata/.*\.yaml
         args:
           - -c=.yamllint-config.yaml
+  - repo: https://github.com/santhosh-tekuri/jsonschema
+    rev: v6.0.2
+    hooks:
+      - id: jsonschema-validate
+        files: testdata/config.*\.yaml
+        args:
+          - schemas/config.schema.json
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.28.0
     hooks:

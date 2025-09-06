@@ -23,20 +23,19 @@ import (
 	"regexp"
 	"time"
 
+	ccfg "github.com/rkosegi/go-http-commons/config"
 	"github.com/samber/lo"
 )
 
 var (
-	TRUE                  = true
-	FALSE                 = false
-	DefaultDbDriver       = "mysql"
-	defaultLogLevel       = "info"
-	defaultLogFormat      = "json"
-	emptyIdMap            = make(map[string]string)
-	beNameRE              = regexp.MustCompile(`^[\w-]{1,63}$`)
-	ErrNoBackend          = errors.New("no backend configured")
-	ErrTlsKeyPathMissing  = errors.New("server.http_tls_config.tls_key_path is required")
-	ErrTlsCertPathMissing = errors.New("server.http_tls_config.tls_cert_path is required")
+	TRUE             = true
+	FALSE            = false
+	DefaultDbDriver  = "mysql"
+	defaultLogLevel  = "info"
+	defaultLogFormat = "json"
+	emptyIdMap       = make(map[string]string)
+	beNameRE         = regexp.MustCompile(`^[\w-]{1,63}$`)
+	ErrNoBackend     = errors.New("no backend configured")
 )
 
 type BackendConfig struct {
@@ -101,12 +100,7 @@ func (be *BackendConfig) DB() *sql.DB {
 
 type Backends map[string]*BackendConfig
 
-type CorsConfig struct {
-	AllowedOrigins []string `yaml:"allowed_origins"`
-	MaxAge         int      `yaml:"max_age"`
-}
-
-var defCorsConfig = CorsConfig{
+var defCorsConfig = ccfg.CorsConfig{
 	MaxAge: 600,
 	// if you run this in default config, you most likely come from
 	// different origin then http://localhost:22001 (or whatever address is this running on).
@@ -114,56 +108,41 @@ var defCorsConfig = CorsConfig{
 	AllowedOrigins: []string{"*"},
 }
 
-type TLSConfig struct {
-	TLSCertPath string `yaml:"cert_file"`
-	TLSKeyPath  string `yaml:"key_file"`
-	ClientAuth  string `yaml:"client_auth_type"`
-	ClientCAs   string `yaml:"client_ca_file"`
-}
-
 type LoggingConfig struct {
 	Level  *string `yaml:"level,omitempty"`
 	Format *string `yaml:"format,omitempty"`
 }
 
-type TelemetryConfig struct {
-	Enabled bool `yaml:"enabled"`
-	// Path under which prometheus registry is exposed
-	Path string `yaml:"path"`
-}
-
-type ServerConfig struct {
-	HTTPListenAddress string     `yaml:"http_listen_address"`
-	HTTPTLSConfig     *TLSConfig `yaml:"http_tls_config"`
-	APiPrefix         *string
-	CorsConfig        *CorsConfig      `yaml:"cors"`
-	Telemetry         *TelemetryConfig `yaml:"telemetry,omitempty"`
-}
-
 type Config struct {
-	Server        ServerConfig   `yaml:"server"`
-	Backends      Backends       `yaml:"backends"`
-	LoggingConfig *LoggingConfig `yaml:"logging,omitempty"`
+	Server        ccfg.ServerConfig `yaml:"server"`
+	Backends      Backends          `yaml:"backends"`
+	LoggingConfig *LoggingConfig    `yaml:"logging,omitempty"`
 }
 
 // CheckAndNormalize sets any missing optional values and ensures all values are semantically correct.
 func (c *Config) CheckAndNormalize() error {
-	if c.Server.CorsConfig == nil {
-		c.Server.CorsConfig = &defCorsConfig
+	if c.Server.ListenAddress == "" {
+		c.Server.ListenAddress = ":22001"
+	}
+	if err := c.Server.Check(); err != nil {
+		return err
+	}
+	if c.Server.Cors == nil {
+		c.Server.Cors = &defCorsConfig
 	}
 	if len(c.Backends) == 0 {
 		return ErrNoBackend
 	}
 	if c.Server.Telemetry == nil {
-		c.Server.Telemetry = &TelemetryConfig{
+		c.Server.Telemetry = &ccfg.TelemetryConfig{
 			Enabled: FALSE,
 		}
 	}
-	if len(c.Server.Telemetry.Path) == 0 {
-		c.Server.Telemetry.Path = "/metrics"
+	if c.Server.Telemetry.Path == nil {
+		c.Server.Telemetry.Path = lo.ToPtr(ccfg.DefaultMetricPath)
 	}
-	if c.Server.APiPrefix == nil {
-		c.Server.APiPrefix = lo.ToPtr("/api/v1")
+	if c.Server.APIPrefix == nil {
+		c.Server.APIPrefix = lo.ToPtr("/api/v1")
 	}
 	for k, v := range c.Backends {
 		if !beNameRE.MatchString(k) {
@@ -186,14 +165,6 @@ func (c *Config) CheckAndNormalize() error {
 		}
 		if v.Delete == nil {
 			v.Delete = &FALSE
-		}
-	}
-	if c.Server.HTTPTLSConfig != nil {
-		if len(c.Server.HTTPTLSConfig.TLSKeyPath) == 0 {
-			return ErrTlsKeyPathMissing
-		}
-		if len(c.Server.HTTPTLSConfig.TLSCertPath) == 0 {
-			return ErrTlsCertPathMissing
 		}
 	}
 	if c.LoggingConfig == nil {
