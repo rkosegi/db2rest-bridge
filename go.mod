@@ -31,7 +31,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rkosegi/go-http-commons v0.0.1
 	github.com/rkosegi/slog-config v0.0.0-20250820232402-93148a62e0e1
-	github.com/samber/lo v1.51.0
+	github.com/samber/lo v1.52.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/multierr v1.11.0
 	gopkg.in/yaml.v3 v3.0.1
