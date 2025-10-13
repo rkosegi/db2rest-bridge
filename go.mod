@@ -29,7 +29,7 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/prometheus/client_golang v1.23.2
-	github.com/rkosegi/go-http-commons v0.0.1
+	github.com/rkosegi/go-http-commons v0.0.2
 	github.com/rkosegi/slog-config v0.0.1
 	github.com/samber/lo v1.52.0
 	github.com/stretchr/testify v1.11.1
