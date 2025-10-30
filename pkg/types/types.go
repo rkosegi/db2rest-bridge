@@ -24,7 +24,6 @@ import (
 	"time"
 
 	ccfg "github.com/rkosegi/go-http-commons/config"
-	"github.com/samber/lo"
 )
 
 var (
@@ -138,11 +137,11 @@ func (c *Config) CheckAndNormalize() error {
 			Enabled: FALSE,
 		}
 	}
-	if c.Server.Telemetry.Path == nil {
-		c.Server.Telemetry.Path = lo.ToPtr(ccfg.DefaultMetricPath)
+	if c.Server.Telemetry.Path == "" {
+		c.Server.Telemetry.Path = ccfg.DefaultMetricPath
 	}
-	if c.Server.APIPrefix == nil {
-		c.Server.APIPrefix = lo.ToPtr("/api/v1")
+	if c.Server.APIPrefix == "" {
+		c.Server.APIPrefix = "/api/v1"
 	}
 	for k, v := range c.Backends {
 		if !beNameRE.MatchString(k) {

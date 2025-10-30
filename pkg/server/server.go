@@ -99,12 +99,12 @@ func (rs *restServer) Run() (err error) {
 	if rs.cfg.Server.Telemetry.Enabled {
 		mws = append(mws, middlewares.NewInterceptorBuilder().
 			WithRequestFilter(func(r *http.Request) bool {
-				return strings.HasPrefix(r.URL.Path, *rs.cfg.Server.APIPrefix)
+				return strings.HasPrefix(r.URL.Path, rs.cfg.Server.APIPrefix)
 			}).
 			WithCallback(func(resp middlewares.InterceptedResponse) {
 				req := resp.Request()
 				p := req.URL.Path
-				p = strings.TrimPrefix(p, *rs.cfg.Server.APIPrefix)
+				p = strings.TrimPrefix(p, rs.cfg.Server.APIPrefix)
 				p = strings.TrimPrefix(p, "/")
 				start := time.Now()
 				if parts := strings.SplitN(p, "/", 3); len(parts) > 1 {
@@ -119,13 +119,13 @@ func (rs *restServer) Run() (err error) {
 				}
 			}).
 			Build())
-		r.Handle(*rs.cfg.Server.Telemetry.Path, promhttp.Handler())
+		r.Handle(rs.cfg.Server.Telemetry.Path, promhttp.Handler())
 	}
 
 	rs.server = &http.Server{
 		Addr: rs.cfg.Server.ListenAddress,
 		Handler: cors(api.HandlerWithOptions(rs, api.GorillaServerOptions{
-			BaseURL:     *rs.cfg.Server.APIPrefix,
+			BaseURL:     rs.cfg.Server.APIPrefix,
 			BaseRouter:  r,
 			Middlewares: mws,
 		})),
