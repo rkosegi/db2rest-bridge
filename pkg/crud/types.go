@@ -18,6 +18,7 @@ package crud
 
 import (
 	"database/sql"
+	"errors"
 	"io"
 	"log/slog"
 	"time"
@@ -26,7 +27,6 @@ import (
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
-	"go.uber.org/multierr"
 )
 
 type PagedResult struct {
@@ -69,7 +69,7 @@ func (m *NameToCrudMap) Close() error {
 			errs = append(errs, err)
 		}
 	}
-	return multierr.Combine(errs...)
+	return errors.Join(errs...)
 }
 
 func New(be *types.BackendConfig, n string, logger *slog.Logger) Interface {
