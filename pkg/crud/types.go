@@ -29,9 +29,6 @@ import (
 	"go.uber.org/multierr"
 )
 
-// deprecated
-type Untyped api.UntypedDto
-
 type PagedResult struct {
 	Data       []api.UntypedDto `json:"data"`
 	TotalCount int              `json:"total_count"`
