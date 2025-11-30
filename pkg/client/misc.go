@@ -18,10 +18,8 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"slices"
 
@@ -52,28 +50,4 @@ func tryConsumeResponseBody(r *http.Response) string {
 		return ""
 	}
 	return out.String()
-}
-
-type responseLoggingHttpDoer struct {
-	d api.HttpRequestDoer
-	l *slog.Logger
-}
-
-func (r *responseLoggingHttpDoer) Do(req *http.Request) (*http.Response, error) {
-	resp, err := r.d.Do(req)
-	if resp != nil {
-		r.l.Debug("got response", "status", resp.StatusCode)
-	}
-	return resp, err
-}
-
-func ResponseLogger(d api.HttpRequestDoer, l *slog.Logger) api.HttpRequestDoer {
-	return &responseLoggingHttpDoer{d: d, l: l}
-}
-
-func RequestLogger(l *slog.Logger) api.RequestEditorFn {
-	return func(ctx context.Context, req *http.Request) error {
-		l.Debug("sending request", "method", req.Method, "url", req.URL.String())
-		return nil
-	}
 }
