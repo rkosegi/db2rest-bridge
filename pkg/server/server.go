@@ -95,6 +95,9 @@ func (rs *restServer) Run() (err error) {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/spec/openapi.v1.json", openapi.SpecHandler(api.PathToRawSpec))
+	r.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("OK\n"))
+	})
 
 	if rs.cfg.Server.Telemetry.Enabled {
 		mws = append(mws, middlewares.NewInterceptorBuilder().
