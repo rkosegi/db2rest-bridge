@@ -37,7 +37,7 @@ func mapValue(ct *sql.ColumnType, val interface{}) interface{} {
 		if err := x.Scan(val); err == nil {
 			return x.Float64
 		}
-	case "VARCHAR", "ENUM", "CHAR":
+	case "VARCHAR", "ENUM", "CHAR", "TEXT":
 		x := &sql.NullString{}
 		if err := x.Scan(val); err == nil {
 			return x.String
