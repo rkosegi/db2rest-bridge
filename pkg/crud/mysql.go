@@ -36,13 +36,21 @@ import (
 )
 
 var (
-	errCreateNotAllowed = errors.New("create is not allowed")
-	errReadNotAllowed   = errors.New("read is not allowed")
-	errUpdateNotAllowed = errors.New("update is not allowed")
-	errDeleteNotAllowed = errors.New("delete is not allowed")
+	errCreateNotAllowed = OpNotAllowedError{Op: "create"}
+	errReadNotAllowed   = OpNotAllowedError{Op: "read"}
+	errUpdateNotAllowed = OpNotAllowedError{Op: "update"}
+	errDeleteNotAllowed = OpNotAllowedError{Op: "delete"}
 	errNoObj            = errors.New("require at least one object")
 	dateTimeLayouts     = []string{time.RFC3339, time.DateOnly}
 )
+
+type OpNotAllowedError struct {
+	Op string
+}
+
+func (o OpNotAllowedError) Error() string {
+	return o.Op + " is not allowed by configuration"
+}
 
 type bedb struct {
 	io.Closer

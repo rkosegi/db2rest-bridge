@@ -205,6 +205,10 @@ paths:
                 $ref: "#/components/schemas/UntypedDto"
         '404':
           description: Item with given ID does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorObject"
         '405':
           description: Read is not allowed.
       tags:
@@ -227,6 +231,11 @@ paths:
                 $ref: "#/components/schemas/UntypedDto"
         '404':
           description: Item with given ID does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorObject"
+
         '405':
           description: Update is not allowed.
       tags:
@@ -328,3 +337,19 @@ components:
       description: Unstructured content, dictionary of string-to-any values.
       type: object
       additionalProperties: true
+
+    ErrorObject:
+      description: Generic object to convey error details
+      properties:
+        message:
+          description: Human readable message about error state
+          type: string
+        code:
+          description: Code related to error state
+          type: integer
+          x-go-type: int
+        data:
+          description: Ad-hoc data associated with error
+          additionalProperties: true
+      required:
+        - message

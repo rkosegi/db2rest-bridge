@@ -53,7 +53,16 @@ var (
 		Help:      "Total bytes of HTTP responses.",
 	}, []string{"backend", "entity", "method", "status"})
 
-	out = output.NewBuilder().Build()
+	out = output.NewBuilder().
+		WithErrorMapper(func(w http.ResponseWriter, err error) bool {
+			if _, ok := err.(crud.OpNotAllowedError); ok {
+				w.Header().Del("Content-Type")
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return true
+			}
+			return false
+		}).
+		Build()
 )
 
 type restServer struct {

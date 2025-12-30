@@ -44,6 +44,10 @@ func ensureResponseCode(r *http.Response, code int) error {
 	return nil
 }
 
+func invalidCode(r *http.Response) error {
+	return fmt.Errorf("unexpected error code: %d: %s", r.StatusCode, tryConsumeResponseBody(r))
+}
+
 func tryConsumeResponseBody(r *http.Response) string {
 	var out bytes.Buffer
 	if _, err := io.Copy(&out, r.Body); err != nil {

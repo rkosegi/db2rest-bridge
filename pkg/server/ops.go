@@ -18,6 +18,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"slices"
 
@@ -91,7 +92,9 @@ func (rs *restServer) GetItemById(w http.ResponseWriter, r *http.Request, backen
 			if obj != nil {
 				out.SendWithStatus(writer, obj, http.StatusOK)
 			} else {
-				w.WriteHeader(http.StatusNotFound)
+				out.SendWithStatus(writer, api.ErrorObject{
+					Message: fmt.Sprintf("entity of type '%s' with id '%s' was not found", entity, id),
+				}, http.StatusNotFound)
 			}
 		}
 	})
@@ -127,7 +130,9 @@ func (rs *restServer) UpdateItemById(w http.ResponseWriter, r *http.Request, bac
 			return
 		}
 		if !exists {
-			writer.WriteHeader(http.StatusNotFound)
+			out.SendWithStatus(writer, api.ErrorObject{
+				Message: fmt.Sprintf("entity of type '%s' with id '%s' was not found", entity, id),
+			}, http.StatusNotFound)
 			return
 		}
 		if body, err = c.Update(entity, id, body); err != nil {

@@ -18,6 +18,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
@@ -78,10 +79,14 @@ func (g *generic[T]) Get(ctx context.Context, id string) (*T, error) {
 	if resp, err := g.c.GetItemByIdWithResponse(ctx, g.be, g.ent, id); err != nil {
 		return nil, err
 	} else {
-		if err = ensureResponseCode(resp.HTTPResponse, http.StatusOK); err != nil {
-			return nil, err
+		switch resp.StatusCode() {
+		case http.StatusOK:
+			return g.decFn(*resp.JSON200)
+		case http.StatusNotFound:
+			return nil, errors.New(resp.JSON404.Message)
+		default:
+			return nil, invalidCode(resp.HTTPResponse)
 		}
-		return g.decFn(*resp.JSON200)
 	}
 }
 
@@ -108,10 +113,14 @@ func (g *generic[T]) Update(ctx context.Context, id string, obj *T) (*T, error) 
 	if cir, err = g.c.UpdateItemByIdWithResponse(ctx, g.be, g.ent, id, filterProps(m, g.skipProps)); err != nil {
 		return nil, err
 	}
-	if err = ensureResponseCode(cir.HTTPResponse, http.StatusAccepted); err != nil {
-		return nil, err
+	switch cir.StatusCode() {
+	case http.StatusAccepted:
+		return g.decFn(*cir.JSON202)
+	case http.StatusNotFound:
+		return nil, errors.New(cir.JSON404.Message)
+	default:
+		return nil, invalidCode(cir.HTTPResponse)
 	}
-	return g.decFn(*cir.JSON202)
 }
 
 func (g *generic[T]) BulkUpdate(ctx context.Context, objs []*T, mode api.BulkUpdateMode) error {

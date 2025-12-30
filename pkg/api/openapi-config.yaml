@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
 package: api
 output: gen.go
 generate:
@@ -19,3 +20,5 @@ generate:
   client: true
   gorilla-server: true
   embedded-spec: true
+output-options:
+  skip-prune: true
