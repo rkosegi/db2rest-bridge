@@ -17,6 +17,7 @@ limitations under the License.
 package crud
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"io"
@@ -53,26 +54,26 @@ type PagedResult struct {
 // Interface is API to perform CRUD operation against backend
 type Interface interface {
 	// ListEntities lists all entity types in backend (such as tables)
-	ListEntities() ([]string, error)
+	ListEntities(ctx context.Context) ([]string, error)
 	// ListItems lists items based on provided query
-	ListItems(entity string, qry query.Interface) (*PagedResult, error)
+	ListItems(ctx context.Context, entity string, qry query.Interface) (*PagedResult, error)
 	// Exists checks for existence of item based on ID
-	Exists(entity, id string) (bool, error)
+	Exists(ctx context.Context, entity, id string) (bool, error)
 	// Get gets item based on ID
-	Get(entity, id string) (api.UntypedDto, error)
+	Get(ctx context.Context, entity, id string) (api.UntypedDto, error)
 	// Update item by its ID
-	Update(entity, id string, body api.UntypedDto) (api.UntypedDto, error)
+	Update(ctx context.Context, entity, id string, body api.UntypedDto) (api.UntypedDto, error)
 	// Create creates new item
-	Create(entity string, body api.UntypedDto) (api.UntypedDto, error)
+	Create(ctx context.Context, entity string, body api.UntypedDto) (api.UntypedDto, error)
 	// Delete deletes item by its ID
-	Delete(entity string, id string) error
+	Delete(ctx context.Context, entity string, id string) error
 	// MultiDelete deletes items that has provided ids
-	MultiDelete(entity string, ids []interface{}) error
+	MultiDelete(ctx context.Context, entity string, ids []interface{}) error
 	// MultiUpdate updates multiple items in one shot
-	MultiUpdate(entity string, objs []api.UntypedDto) error
+	MultiUpdate(ctx context.Context, entity string, objs []api.UntypedDto) error
 	// MultiCreate creates multiple items in one shot
 	// if replace is set to true, then items are removed in backend prior to creating, if they exist.
-	MultiCreate(entity string, replace bool, objs []api.UntypedDto) error
+	MultiCreate(ctx context.Context, entity string, replace bool, objs []api.UntypedDto) error
 }
 
 type NameToCrudMap map[string]Interface

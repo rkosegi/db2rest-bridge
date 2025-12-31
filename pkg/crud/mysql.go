@@ -74,9 +74,9 @@ func (be *bedb) logSQL(sql string) string {
 	return sql
 }
 
-func (be *bedb) fetchOneItem(entity, id string, retrieve bool) (res api.UntypedDto, err error) {
+func (be *bedb) fetchOneItem(ctx context.Context, entity, id string, retrieve bool) (res api.UntypedDto, err error) {
 	qry := be.logSQL(createSingleSelectQuery(entity, be.config.IdColumn(entity)))
-	rows, err := be.config.DB().Query(qry, id)
+	rows, err := be.config.DB().QueryContext(ctx, qry, id)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (be *bedb) fetchOneItem(entity, id string, retrieve bool) (res api.UntypedD
 	return res, nil
 }
 
-func (be *bedb) ListItems(entity string, qe query.Interface) (*PagedResult, error) {
+func (be *bedb) ListItems(ctx context.Context, entity string, qe query.Interface) (*PagedResult, error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
@@ -121,13 +121,13 @@ func (be *bedb) ListItems(entity string, qe query.Interface) (*PagedResult, erro
 		qe = query.DefaultQuery
 	}
 	qry = be.logSQL(fmt.Sprintf("SELECT COUNT(1) FROM `%s` WHERE %s", entity, qe.Filter().String()))
-	row := be.config.DB().QueryRow(qry)
+	row := be.config.DB().QueryRowContext(ctx, qry)
 	if err = row.Scan(&cnt); err != nil {
 		return nil, err
 	}
 
 	qry = be.logSQL(fmt.Sprintf("SELECT * FROM `%s` %s", entity, qe.String()))
-	rows, err = be.config.DB().Query(qry)
+	rows, err = be.config.DB().QueryContext(ctx, qry)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (be *bedb) ListItems(entity string, qe query.Interface) (*PagedResult, erro
 	}, nil
 }
 
-func (be *bedb) ListEntities() ([]string, error) {
+func (be *bedb) ListEntities(ctx context.Context) ([]string, error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
@@ -162,7 +162,7 @@ func (be *bedb) ListEntities() ([]string, error) {
 		err error
 		res []string
 	)
-	rows, err := be.config.DB().Query(be.logSQL("SHOW TABLES"))
+	rows, err := be.config.DB().QueryContext(ctx, be.logSQL("SHOW TABLES"))
 	if err != nil {
 		return nil, err
 	}
@@ -180,31 +180,31 @@ func (be *bedb) ListEntities() ([]string, error) {
 	return res, nil
 }
 
-func (be *bedb) Exists(entity, id string) (bool, error) {
+func (be *bedb) Exists(ctx context.Context, entity, id string) (bool, error) {
 	if !*be.config.Read {
 		return false, errReadNotAllowed
 	}
-	r, err := be.fetchOneItem(entity, id, false)
+	r, err := be.fetchOneItem(ctx, entity, id, false)
 	return r != nil, err
 }
 
-func (be *bedb) Get(entity, id string) (res api.UntypedDto, err error) {
+func (be *bedb) Get(ctx context.Context, entity, id string) (res api.UntypedDto, err error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
-	return be.fetchOneItem(entity, id, true)
+	return be.fetchOneItem(ctx, entity, id, true)
 }
 
-func (be *bedb) Delete(entity, id string) (err error) {
+func (be *bedb) Delete(ctx context.Context, entity, id string) (err error) {
 	if !*be.config.Delete {
 		return errDeleteNotAllowed
 	}
 	qry := be.logSQL(createSingleDeleteQuery(entity, be.config.IdColumn(entity)))
-	_, err = be.config.DB().Exec(qry, id)
+	_, err = be.config.DB().ExecContext(ctx, qry, id)
 	return err
 }
 
-func (be *bedb) Update(entity, id string, body api.UntypedDto) (api.UntypedDto, error) {
+func (be *bedb) Update(ctx context.Context, entity, id string, body api.UntypedDto) (api.UntypedDto, error) {
 	if !*be.config.Update {
 		return nil, errUpdateNotAllowed
 	}
@@ -214,10 +214,10 @@ func (be *bedb) Update(entity, id string, body api.UntypedDto) (api.UntypedDto, 
 	}
 	qry, values := createUpdateQuery(entity, be.config.IdColumn(entity), body)
 	values = append(values, id)
-	if _, err := be.config.DB().Exec(be.logSQL(qry), values...); err != nil {
+	if _, err := be.config.DB().ExecContext(ctx, be.logSQL(qry), values...); err != nil {
 		return nil, err
 	}
-	return be.fetchOneItem(entity, id, true)
+	return be.fetchOneItem(ctx, entity, id, true)
 }
 
 func remapValue(v interface{}, ct *sql.ColumnType) interface{} {
@@ -253,7 +253,7 @@ func remapBody(md *ttlcache.Item[string, map[string]*sql.ColumnType], body api.U
 	return body
 }
 
-func (be *bedb) Create(entity string, body api.UntypedDto) (api.UntypedDto, error) {
+func (be *bedb) Create(ctx context.Context, entity string, body api.UntypedDto) (api.UntypedDto, error) {
 	if !*be.config.Create {
 		return nil, errCreateNotAllowed
 	}
@@ -267,16 +267,16 @@ func (be *bedb) Create(entity string, body api.UntypedDto) (api.UntypedDto, erro
 		body = remapBody(md, body)
 	}
 	qry, values := createInsertQuery(entity, body)
-	if res, err = be.config.DB().Exec(be.logSQL(qry), values...); err != nil {
+	if res, err = be.config.DB().ExecContext(ctx, be.logSQL(qry), values...); err != nil {
 		return nil, err
 	}
 	if id, err = res.LastInsertId(); err != nil {
 		return nil, err
 	}
-	return be.fetchOneItem(entity, strconv.FormatInt(id, 10), true)
+	return be.fetchOneItem(ctx, entity, strconv.FormatInt(id, 10), true)
 }
 
-func (be *bedb) MultiDelete(entity string, ids []interface{}) error {
+func (be *bedb) MultiDelete(ctx context.Context, entity string, ids []interface{}) error {
 	if !*be.config.Delete {
 		return errDeleteNotAllowed
 	}
@@ -284,15 +284,15 @@ func (be *bedb) MultiDelete(entity string, ids []interface{}) error {
 	case ic == 0:
 		return errNoObj
 	case ic == 1:
-		return be.Delete(entity, fmt.Sprintf("%v", ids[0]))
+		return be.Delete(ctx, entity, fmt.Sprintf("%v", ids[0]))
 	default:
-		_, err := be.config.DB().Exec(be.logSQL(
+		_, err := be.config.DB().ExecContext(ctx, be.logSQL(
 			createMultiDeleteQuery(entity, be.config.IdColumn(entity), ic)), ids...)
 		return err
 	}
 }
 
-func (be *bedb) MultiUpdate(entity string, objs []api.UntypedDto) error {
+func (be *bedb) MultiUpdate(ctx context.Context, entity string, objs []api.UntypedDto) error {
 	var (
 		err error
 		tx  *sql.Tx
@@ -300,7 +300,6 @@ func (be *bedb) MultiUpdate(entity string, objs []api.UntypedDto) error {
 	if !*be.config.Update {
 		return errUpdateNotAllowed
 	}
-	ctx := context.Background()
 	tx, err = be.config.DB().BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return err
@@ -323,7 +322,7 @@ func (be *bedb) MultiUpdate(entity string, objs []api.UntypedDto) error {
 	return tx.Commit()
 }
 
-func (be *bedb) MultiCreate(entity string, replace bool, objs []api.UntypedDto) error {
+func (be *bedb) MultiCreate(ctx context.Context, entity string, replace bool, objs []api.UntypedDto) error {
 	var (
 		err error
 		tx  *sql.Tx
@@ -332,7 +331,6 @@ func (be *bedb) MultiCreate(entity string, replace bool, objs []api.UntypedDto) 
 		return errCreateNotAllowed
 	}
 
-	ctx := context.Background()
 	tx, err = be.config.DB().BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return err
