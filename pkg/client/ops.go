@@ -69,10 +69,14 @@ func (g *generic[T]) Create(ctx context.Context, t *T) (*T, error) {
 	if cir, err = g.c.CreateItemWithResponse(ctx, g.be, g.ent, filterProps(m, g.skipProps)); err != nil {
 		return nil, err
 	}
-	if err = ensureResponseCode(cir.HTTPResponse, http.StatusCreated); err != nil {
-		return nil, err
+	switch cir.StatusCode() {
+	case http.StatusCreated:
+		return g.decFn(*cir.JSON201)
+	case http.StatusInternalServerError:
+		return nil, errors.New(cir.JSON500.Message)
+	default:
+		return nil, invalidCode(cir.HTTPResponse)
 	}
-	return g.decFn(*cir.JSON201)
 }
 
 func (g *generic[T]) Get(ctx context.Context, id string) (*T, error) {

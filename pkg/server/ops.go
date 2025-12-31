@@ -75,7 +75,9 @@ func (rs *restServer) CreateItem(w http.ResponseWriter, r *http.Request, backend
 		} else {
 			if body, err = c.Create(entity, body); err != nil {
 				rs.logger.Error("can't create item", "backend", backend, "entity", entity, "error", err)
-				out.SendWithStatus(writer, err, http.StatusInternalServerError)
+				out.SendWithStatus(writer, api.ErrorObject{
+					Message: err.Error(),
+				}, http.StatusInternalServerError)
 			} else {
 				out.SendWithStatus(writer, body, http.StatusCreated)
 			}

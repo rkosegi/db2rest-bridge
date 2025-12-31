@@ -159,6 +159,10 @@ paths:
           description: Create is not allowed.
         '500':
           description: Unable to create entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorObject"
       tags:
         - crud
   /{backend}/{entity}/bulk:

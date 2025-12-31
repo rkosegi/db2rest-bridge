@@ -29,6 +29,21 @@ import (
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
 )
 
+type OpNotAllowedError struct {
+	Op string
+}
+
+func (o OpNotAllowedError) Error() string {
+	return o.Op + " is not allowed by configuration"
+}
+
+var (
+	errCreateNotAllowed = OpNotAllowedError{Op: "create"}
+	errReadNotAllowed   = OpNotAllowedError{Op: "read"}
+	errUpdateNotAllowed = OpNotAllowedError{Op: "update"}
+	errDeleteNotAllowed = OpNotAllowedError{Op: "delete"}
+)
+
 type PagedResult struct {
 	Data       []api.UntypedDto `json:"data"`
 	TotalCount int              `json:"total_count"`
