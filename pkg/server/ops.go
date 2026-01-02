@@ -184,3 +184,24 @@ func (rs *restServer) BulkUpdate(w http.ResponseWriter, r *http.Request, backend
 		}
 	})
 }
+
+func (rs *restServer) QueryNamed(w http.ResponseWriter, r *http.Request, backend api.Backend, name string, params api.QueryNamedParams) {
+	rs.handleBackend(w, r, backend, func(c crud.Interface, writer http.ResponseWriter, request *http.Request) {
+		var (
+			res []api.UntypedDto
+			err error
+		)
+		var args []interface{}
+		if params.Arg != nil {
+			for _, arg := range *params.Arg {
+				args = append(args, arg)
+			}
+		}
+		if res, err = c.QueryNamed(request.Context(), name, args...); err != nil {
+			out.SendWithStatus(writer, err, http.StatusInternalServerError)
+		} else {
+			out.SendWithStatus(writer, res, http.StatusOK)
+		}
+	})
+
+}

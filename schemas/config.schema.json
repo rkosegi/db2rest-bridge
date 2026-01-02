@@ -31,6 +31,10 @@
         "max_open_connections": {
           "type": "integer"
         },
+        "queries": {
+          "additionalProperties": true,
+          "description": "Named queries that can be executed by their name"
+        },
         "read": {
           "type": "boolean"
         },

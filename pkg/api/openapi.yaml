@@ -72,6 +72,40 @@ paths:
       operationId: listEntities
       tags:
         - entity
+  /{backend}/_query/{name}:
+    parameters:
+      - $ref: "#/components/parameters/backend"
+      - name: name
+        description: Name of query within the configuration
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: arg
+        description: Additional arguments passed to query
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+    get:
+      summary: Execute named query and return the result set
+      operationId: queryNamed
+      responses:
+        '200':
+          description: Query executed and data returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UntypedDto"
+        '404':
+          description: Name of query is not recognized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorObject"
   /{backend}/{entity}:
     parameters:
       - $ref: '#/components/parameters/backend'

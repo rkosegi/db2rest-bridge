@@ -149,3 +149,23 @@ func (g *generic[T]) BulkUpdate(ctx context.Context, objs []*T, mode api.BulkUpd
 	}
 	return ensureResponseCode(resp.HTTPResponse, http.StatusOK)
 }
+
+func (g *generic[T]) Query(ctx context.Context, name string, args []string) ([]api.UntypedDto, error) {
+	var (
+		resp *api.QueryNamedResponse
+		err  error
+	)
+	if resp, err = g.c.QueryNamedWithResponse(ctx, g.be, name, &api.QueryNamedParams{
+		Arg: &args,
+	}); err != nil {
+		return nil, err
+	}
+	switch resp.HTTPResponse.StatusCode {
+	case http.StatusOK:
+		return *resp.JSON200, nil
+	case http.StatusNotFound:
+		return nil, errors.New(resp.JSON404.Message)
+	default:
+		return nil, invalidCode(resp.HTTPResponse)
+	}
+}
