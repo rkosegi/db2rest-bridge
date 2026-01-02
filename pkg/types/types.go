@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	ccfg "github.com/rkosegi/go-http-commons/config"
 )
 
@@ -48,6 +49,8 @@ type BackendConfig struct {
 	// Optional mapping from entity (table) name to ID column.
 	// If not specified, then "id" is assumed
 	IdMap *map[string]string `yaml:"id_map,omitempty"`
+	// Named queries that could be executed with optional parameters
+	Queries map[string]string `yaml:"queries"`
 
 	MaxOpenConnections *int           `yaml:"max_open_connections,omitempty"`
 	MaxIdleConnections *int           `yaml:"max_idle_connections,omitempty"`
@@ -98,6 +101,37 @@ func (be *BackendConfig) DB() *sql.DB {
 }
 
 type Backends map[string]*BackendConfig
+
+type BackendError struct {
+	ErrObj api.ErrorObject
+	ie     error
+}
+
+func (b *BackendError) Error() string {
+	return b.ErrObj.Message
+}
+
+func (b *BackendError) Unwrap() error {
+	return b.ie
+}
+
+func NewBackendErrorWithStatus(msg string, status int) error {
+	return &BackendError{
+		ErrObj: api.ErrorObject{
+			Message: msg,
+			Code:    &status,
+		},
+	}
+}
+
+func NewBackendError(msg string, err error) error {
+	return &BackendError{
+		ErrObj: api.ErrorObject{
+			Message: msg,
+		},
+		ie: err,
+	}
+}
 
 var defCorsConfig = ccfg.CorsConfig{
 	MaxAge: 600,

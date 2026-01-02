@@ -88,6 +88,12 @@ type Backend = string
 // Entity defines model for entity.
 type Entity = string
 
+// QueryNamedParams defines parameters for QueryNamed.
+type QueryNamedParams struct {
+	// Arg Additional arguments passed to query
+	Arg *[]string `form:"arg,omitempty" json:"arg,omitempty"`
+}
+
 // ListItemsParams defines parameters for ListItems.
 type ListItemsParams struct {
 	// PageOffset Page offset
@@ -205,6 +211,9 @@ type ClientInterface interface {
 	// ListBackends request
 	ListBackends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// QueryNamed request
+	QueryNamed(ctx context.Context, backend Backend, name string, params *QueryNamedParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListEntities request
 	ListEntities(ctx context.Context, backend Backend, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -238,6 +247,18 @@ type ClientInterface interface {
 
 func (c *Client) ListBackends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListBackendsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) QueryNamed(ctx context.Context, backend Backend, name string, params *QueryNamedParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewQueryNamedRequest(c.Server, backend, name, params)
 	if err != nil {
 		return nil, err
 	}
@@ -397,6 +418,69 @@ func NewListBackendsRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewQueryNamedRequest generates requests for QueryNamed
+func NewQueryNamedRequest(server string, backend Backend, name string, params *QueryNamedParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "backend", runtime.ParamLocationPath, backend)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "name", runtime.ParamLocationPath, name)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/%s/_query/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Arg != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "arg", runtime.ParamLocationQuery, *params.Arg); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -911,6 +995,9 @@ type ClientWithResponsesInterface interface {
 	// ListBackendsWithResponse request
 	ListBackendsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListBackendsResponse, error)
 
+	// QueryNamedWithResponse request
+	QueryNamedWithResponse(ctx context.Context, backend Backend, name string, params *QueryNamedParams, reqEditors ...RequestEditorFn) (*QueryNamedResponse, error)
+
 	// ListEntitiesWithResponse request
 	ListEntitiesWithResponse(ctx context.Context, backend Backend, reqEditors ...RequestEditorFn) (*ListEntitiesResponse, error)
 
@@ -958,6 +1045,29 @@ func (r ListBackendsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListBackendsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type QueryNamedResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]UntypedDto
+	JSON404      *ErrorObject
+}
+
+// Status returns HTTPResponse.Status
+func (r QueryNamedResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r QueryNamedResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1149,6 +1259,15 @@ func (c *ClientWithResponses) ListBackendsWithResponse(ctx context.Context, reqE
 	return ParseListBackendsResponse(rsp)
 }
 
+// QueryNamedWithResponse request returning *QueryNamedResponse
+func (c *ClientWithResponses) QueryNamedWithResponse(ctx context.Context, backend Backend, name string, params *QueryNamedParams, reqEditors ...RequestEditorFn) (*QueryNamedResponse, error) {
+	rsp, err := c.QueryNamed(ctx, backend, name, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseQueryNamedResponse(rsp)
+}
+
 // ListEntitiesWithResponse request returning *ListEntitiesResponse
 func (c *ClientWithResponses) ListEntitiesWithResponse(ctx context.Context, backend Backend, reqEditors ...RequestEditorFn) (*ListEntitiesResponse, error) {
 	rsp, err := c.ListEntities(ctx, backend, reqEditors...)
@@ -1265,6 +1384,39 @@ func ParseListBackendsResponse(rsp *http.Response) (*ListBackendsResponse, error
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseQueryNamedResponse parses an HTTP response from a QueryNamedWithResponse call
+func ParseQueryNamedResponse(rsp *http.Response) (*QueryNamedResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &QueryNamedResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []UntypedDto
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorObject
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 
@@ -1475,6 +1627,9 @@ type ServerInterface interface {
 	// List all configured backends
 	// (GET /backends)
 	ListBackends(w http.ResponseWriter, r *http.Request)
+	// Execute named query and return the result set
+	// (GET /{backend}/_query/{name})
+	QueryNamed(w http.ResponseWriter, r *http.Request, backend Backend, name string, params QueryNamedParams)
 	// List all known entities within backend
 	// (GET /{backend}/entities)
 	ListEntities(w http.ResponseWriter, r *http.Request, backend Backend)
@@ -1515,6 +1670,51 @@ func (siw *ServerInterfaceWrapper) ListBackends(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListBackends(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QueryNamed operation middleware
+func (siw *ServerInterfaceWrapper) QueryNamed(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "backend" -------------
+	var backend Backend
+
+	err = runtime.BindStyledParameterWithOptions("simple", "backend", mux.Vars(r)["backend"], &backend, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "backend", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "name" -------------
+	var name string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "name", mux.Vars(r)["name"], &name, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "name", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params QueryNamedParams
+
+	// ------------- Optional query parameter "arg" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "arg", r.URL.Query(), &params.Arg)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "arg", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QueryNamed(w, r, backend, name, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1973,6 +2173,8 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/backends", wrapper.ListBackends).Methods("GET")
 
+	r.HandleFunc(options.BaseURL+"/{backend}/_query/{name}", wrapper.QueryNamed).Methods("GET")
+
 	r.HandleFunc(options.BaseURL+"/{backend}/entities", wrapper.ListEntities).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/{backend}/{entity}", wrapper.ListItems).Methods("GET")
@@ -1995,43 +2197,45 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

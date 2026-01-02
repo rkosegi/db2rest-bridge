@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -45,6 +46,20 @@ type bedb struct {
 	config  *types.BackendConfig
 	l       *slog.Logger
 	mdCache *ttlcache.Cache[string, map[string]*sql.ColumnType]
+}
+
+func (be *bedb) QueryNamed(ctx context.Context, name string, args ...interface{}) ([]api.UntypedDto, error) {
+	var err error
+	res := make([]api.UntypedDto, 0)
+	qry, ok := be.config.Queries[name]
+	if !ok {
+		return nil, types.NewBackendErrorWithStatus("no such query: "+name, http.StatusNotFound)
+	}
+	be.logSQL(qry)
+	if res, err = be.fetchRows(ctx, qry, args...); err != nil {
+		return nil, types.NewBackendError("failed to execute query "+name, err)
+	}
+	return res, nil
 }
 
 func (be *bedb) Load(c *ttlcache.Cache[string, map[string]*sql.ColumnType], key string) *ttlcache.Item[string, map[string]*sql.ColumnType] {
@@ -106,14 +121,10 @@ func (be *bedb) ListItems(ctx context.Context, entity string, qe query.Interface
 		return nil, errReadNotAllowed
 	}
 	var (
-		cols     []string
-		cnt      int
-		colTypes []*sql.ColumnType
-		err      error
-		rows     *sql.Rows
-		res      []api.UntypedDto
-		item     api.UntypedDto
-		qry      string
+		cnt int
+		err error
+		res []api.UntypedDto
+		qry string
 	)
 
 	res = make([]api.UntypedDto, 0)
@@ -127,31 +138,44 @@ func (be *bedb) ListItems(ctx context.Context, entity string, qe query.Interface
 	}
 
 	qry = be.logSQL(fmt.Sprintf("SELECT * FROM `%s` %s", entity, qe.String()))
-	rows, err = be.config.DB().QueryContext(ctx, qry)
+
+	if res, err = be.fetchRows(ctx, qry); err != nil {
+		return nil, err
+	}
+	return &PagedResult{
+		Data:       res,
+		TotalCount: cnt,
+		Offset:     qe.Paging().Offset(),
+	}, nil
+}
+
+func (be *bedb) fetchRows(ctx context.Context, qry string, args ...interface{}) ([]api.UntypedDto, error) {
+	rows, err := be.config.DB().QueryContext(ctx, qry, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer func(rows *sql.Rows) {
 		_ = rows.Close()
 	}(rows)
+	var (
+		cols     []string
+		colTypes []*sql.ColumnType
+	)
 	cols, colTypes, err = getRowMetadata(rows)
 	if err != nil {
 		return nil, err
 	}
 
+	var res []api.UntypedDto
 	for rows.Next() {
+		var item api.UntypedDto
 		item, err = mapEntity(rows, cols, colTypes)
 		if err != nil {
 			return nil, err
 		}
 		res = append(res, item)
 	}
-
-	return &PagedResult{
-		Data:       res,
-		TotalCount: cnt,
-		Offset:     qe.Paging().Offset(),
-	}, nil
+	return res, nil
 }
 
 func (be *bedb) ListEntities(ctx context.Context) ([]string, error) {

@@ -24,12 +24,17 @@ import (
 )
 
 type GenericInterface[T any] interface {
+	RawInterface
 	List(context.Context, query.Interface) ([]*T, int, error)
 	Create(context.Context, *T) (*T, error)
 	Get(context.Context, string) (*T, error)
 	Delete(context.Context, string) error
 	Update(context.Context, string, *T) (*T, error)
 	BulkUpdate(context.Context, []*T, api.BulkUpdateMode) error
+}
+
+type RawInterface interface {
+	Query(context.Context, string, []string) ([]api.UntypedDto, error)
 }
 
 type Opt[T any] func(*generic[T])
