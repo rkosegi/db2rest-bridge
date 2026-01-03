@@ -28,6 +28,7 @@ const (
 	OpOr  = Op("OR")
 	OpNot = Op("NOT")
 	OpEq  = Op("=")
+	OpIn  = Op("IN")
 )
 
 var (

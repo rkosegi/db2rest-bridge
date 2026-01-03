@@ -144,6 +144,9 @@ func decodeExprFromMap(m map[string]interface{}) FilterExpression {
 	if sub, ok = hasSubMap("not", m); ok {
 		return notExprFromMap(sub)
 	}
+	if sub, ok = hasSubMap("in", m); ok {
+		return inExprFromMap(sub)
+	}
 	return nil
 }
 
@@ -169,6 +172,10 @@ func simpleExprFromMap(m map[string]interface{}) FilterExpression {
 		fmt.Sprintf("%v", m["name"]),
 		Op(m["op"].(string)),
 		fmt.Sprintf("%v", m["val"]))
+}
+
+func inExprFromMap(m map[string]interface{}) FilterExpression {
+	return In(fmt.Sprintf("%v", m["name"]), m["val"].([]interface{}))
 }
 
 func notExprFromMap(m map[string]interface{}) FilterExpression {

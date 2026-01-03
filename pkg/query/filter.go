@@ -101,3 +101,30 @@ func Junction(op Op, sub ...FilterExpression) FilterExpression {
 func Not(expr FilterExpression) FilterExpression {
 	return &notExpr{expr: expr}
 }
+
+type inExpr struct {
+	name string
+	val  []interface{}
+}
+
+func (i inExpr) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"in": map[string]interface{}{
+			"name": i.name,
+			"val":  i.val,
+		},
+	})
+}
+
+func (i inExpr) String() string {
+	return fmt.Sprintf("%s IN (%s)", i.name, strings.Join(lo.Map(i.val, func(item interface{}, _ int) string {
+		return fmt.Sprintf("%v", wrapStr(item, "'"))
+	}), ","))
+}
+
+func In(name string, vals []interface{}) FilterExpression {
+	return &inExpr{
+		name: name,
+		val:  vals,
+	}
+}

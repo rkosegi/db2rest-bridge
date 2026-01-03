@@ -38,6 +38,17 @@ func TestExpressionString(t *testing.T) {
 			SimpleExpr("name", "=", "John"),
 			SimpleExpr("name", "=", "Tom")).
 			String())
+
+	t.Run("IN expression", func(t *testing.T) {
+		assert.Equal(t, "user_id IN (1,2,3)",
+			In("user_id", []interface{}{1, 2, 3}).String())
+
+		assert.Equal(t, "((salary > 1200) AND (department IN ('HR','management')))",
+			Junction(OpAnd,
+				SimpleExpr("salary", ">", 1200),
+				In("department", []interface{}{"HR", "management"}),
+			).String())
+	})
 }
 
 func TestParseFilter(t *testing.T) {
@@ -54,6 +65,22 @@ func TestParseFilter(t *testing.T) {
 	assert.NotNil(t, fe)
 	assert.Equal(t, OpAnd, fe.(*junctionExpr).op)
 	assert.Equal(t, "1", fe.(*junctionExpr).sub[0].(*simpleExpr).name)
+
+	t.Run("IN expression (num)", func(t *testing.T) {
+		fe, err = DecodeFilter(`{"in": { "name": "user_id", "val": [9,8,7]}}`)
+		assert.NoError(t, err)
+		assert.NotNil(t, fe)
+		assert.Len(t, fe.(*inExpr).val, 3)
+		assert.Equal(t, float64(9), fe.(*inExpr).val[0])
+	})
+
+	t.Run("IN expression (str)", func(t *testing.T) {
+		fe, err = DecodeFilter(`{"in": { "name": "code", "val": ["x", "Y"]}}`)
+		assert.NoError(t, err)
+		assert.NotNil(t, fe)
+		assert.Len(t, fe.(*inExpr).val, 2)
+		assert.Equal(t, "x", fe.(*inExpr).val[0])
+	})
 }
 
 func TestOrdersString(t *testing.T) {
@@ -110,13 +137,13 @@ func TestDecodeEncode(t *testing.T) {
 	assert.Equal(t, OpAnd, fe.(*junctionExpr).op)
 	assert.Equal(t, 2, len(fe.(*junctionExpr).sub))
 	assert.Equal(t, "name", fe.(*junctionExpr).sub[0].(*simpleExpr).name)
-	assert.Equal(t, Op("="), fe.(*junctionExpr).sub[0].(*simpleExpr).op)
+	assert.Equal(t, OpEq, fe.(*junctionExpr).sub[0].(*simpleExpr).op)
 
 	data, err = EncodeFilter(
 		Not(
 			Junction(OpOr,
-				SimpleExpr("name", "=", "John"),
-				SimpleExpr("age", "=", 53),
+				SimpleExpr("name", OpEq, "John"),
+				SimpleExpr("age", OpEq, 53),
 			),
 		),
 	)
@@ -125,6 +152,19 @@ func TestDecodeEncode(t *testing.T) {
 	assert.Equal(t, `{"not":{"junction":{"op":"OR","sub":[{"simple":`+
 		`{"name":"name","op":"=","val":"John"}},{"simple":{"name":"age","op":"=","val":53}}]}}}`,
 		strings.TrimSpace(string(data)))
+
+	t.Run("IN expression (num)", func(t *testing.T) {
+		data, err = EncodeFilter(
+			Not(
+				In("user", []interface{}{"Bob", "Alice"}),
+			),
+		)
+		assert.NoError(t, err)
+		assert.NotNil(t, data)
+		assert.Equal(t, `{"not":{"in":{"name":"user","val":["Bob","Alice"]}}}`,
+			strings.TrimSpace(string(data)))
+
+	})
 }
 
 func TestToParams(t *testing.T) {
@@ -164,7 +204,7 @@ func TestDecodeRequest(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, qry)
-	assert.Equal(t, Op("="), qry.Filter().(*notExpr).expr.(*simpleExpr).op)
+	assert.Equal(t, OpEq, qry.Filter().(*notExpr).expr.(*simpleExpr).op)
 	assert.Equal(t, "name", qry.Orders()[0].Name())
 	assert.Equal(t, true, qry.Orders()[0].Asc())
 	assert.Equal(t, "age", qry.Orders()[1].Name())
