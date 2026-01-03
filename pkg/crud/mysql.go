@@ -49,6 +49,9 @@ type bedb struct {
 }
 
 func (be *bedb) QueryNamed(ctx context.Context, name string, args ...interface{}) ([]api.UntypedDto, error) {
+	if !*be.config.Read {
+		return nil, errReadNotAllowed
+	}
 	var err error
 	res := make([]api.UntypedDto, 0)
 	qry, ok := be.config.Queries[name]
@@ -123,11 +126,9 @@ func (be *bedb) ListItems(ctx context.Context, entity string, qe query.Interface
 	var (
 		cnt int
 		err error
-		res []api.UntypedDto
 		qry string
 	)
 
-	res = make([]api.UntypedDto, 0)
 	if qe == nil {
 		qe = query.DefaultQuery
 	}
@@ -139,6 +140,7 @@ func (be *bedb) ListItems(ctx context.Context, entity string, qe query.Interface
 
 	qry = be.logSQL(fmt.Sprintf("SELECT * FROM `%s` %s", entity, qe.String()))
 
+	var res []api.UntypedDto
 	if res, err = be.fetchRows(ctx, qry); err != nil {
 		return nil, err
 	}
@@ -166,7 +168,7 @@ func (be *bedb) fetchRows(ctx context.Context, qry string, args ...interface{}) 
 		return nil, err
 	}
 
-	var res []api.UntypedDto
+	res := []api.UntypedDto{}
 	for rows.Next() {
 		var item api.UntypedDto
 		item, err = mapEntity(rows, cols, colTypes)
