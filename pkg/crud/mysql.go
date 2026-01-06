@@ -341,8 +341,8 @@ func (be *bedb) MultiUpdate(ctx context.Context, entity string, objs []api.Untyp
 		qry, values := createUpdateQuery(entity, idCol, obj)
 		values = append(values, id)
 		if _, err = tx.ExecContext(ctx, be.logSQL(qry), values...); err != nil {
-			be.l.Warn("query execution failed, rollin back", "err", err)
-			return tx.Rollback()
+			be.l.ErrorContext(ctx, "query execution failed, rolling back", "err", err)
+			return errors.Join(err, tx.Rollback())
 		}
 	}
 	return tx.Commit()
@@ -377,8 +377,10 @@ func (be *bedb) MultiCreate(ctx context.Context, entity string, replace bool, ob
 		}
 
 		if _, err = tx.ExecContext(ctx, be.logSQL(qry), values...); err != nil {
-			be.l.Warn("query execution failed, rolling back", "err", err)
-			return tx.Rollback()
+			be.l.ErrorContext(ctx, "query execution failed, rolling back", "err", err)
+			return errors.Join(types.WrapErrorInBackendError(
+				"query failed: "+qry, err, http.StatusInternalServerError),
+				tx.Rollback())
 		}
 	}
 

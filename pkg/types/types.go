@@ -116,18 +116,23 @@ func (b *BackendError) Unwrap() error {
 }
 
 func NewBackendErrorWithStatus(msg string, status int) error {
-	return &BackendError{
-		ErrObj: api.ErrorObject{
-			Message: msg,
-			Code:    &status,
-		},
-	}
+	return WrapErrorInBackendError(msg, nil, status)
 }
 
 func NewBackendError(msg string, err error) error {
 	return &BackendError{
 		ErrObj: api.ErrorObject{
 			Message: msg,
+		},
+		ie: err,
+	}
+}
+
+func WrapErrorInBackendError(msg string, err error, status int) error {
+	return &BackendError{
+		ErrObj: api.ErrorObject{
+			Message: msg,
+			Code:    &status,
 		},
 		ie: err,
 	}
