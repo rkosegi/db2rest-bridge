@@ -25,16 +25,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFilterProps(t *testing.T) {
+func TestExcludeProps(t *testing.T) {
 	in := map[string]interface{}{
 		"created": "2024-11-01 22:32:21",
 		"name":    "Hello",
 		"age":     42,
 	}
-	out := filterProps(in, []string{"created"})
-	assert.Equal(t, 2, len(out))
+	out := excludeProps(in, []string{"created"})
+	assert.Len(t, out, 2)
 	assert.Equal(t, "Hello", out["name"])
 	assert.Equal(t, 42, out["age"])
+}
+
+func TestOnlyProps(t *testing.T) {
+	out := onlyProps(map[string]interface{}{
+		"id":   999,
+		"name": "Alice",
+		"age":  30,
+	}, []string{"id"})
+	assert.Len(t, out, 1)
+	assert.Equal(t, 999, out["id"])
 }
 
 func TestEnsureResponseCode(t *testing.T) {

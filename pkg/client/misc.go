@@ -24,16 +24,21 @@ import (
 	"slices"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
+	"github.com/samber/lo"
 )
 
-func filterProps(in api.UntypedDto, props []string) api.UntypedDto {
-	m := make(map[string]interface{})
-	for k, v := range in {
-		if !slices.Contains(props, k) {
-			m[k] = v
-		}
-	}
-	return m
+// excludeProps return untyped object with all provided properties removed
+func excludeProps(in api.UntypedDto, props []string) api.UntypedDto {
+	return lo.OmitBy(in, func(key string, value interface{}) bool {
+		return slices.Contains(props, key)
+	})
+}
+
+// onlyProps return untyped object with only provided properties
+func onlyProps(in api.UntypedDto, props []string) api.UntypedDto {
+	return lo.OmitBy(in, func(key string, value interface{}) bool {
+		return !slices.Contains(props, key)
+	})
 }
 
 func ensureResponseCode(r *http.Response, code int) error {

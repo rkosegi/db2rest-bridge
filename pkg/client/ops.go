@@ -66,7 +66,7 @@ func (g *generic[T]) Create(ctx context.Context, t *T) (*T, error) {
 	if m, err = g.encFn(t); err != nil {
 		return nil, err
 	}
-	if cir, err = g.c.CreateItemWithResponse(ctx, g.be, g.ent, filterProps(m, g.skipProps)); err != nil {
+	if cir, err = g.c.CreateItemWithResponse(ctx, g.be, g.ent, excludeProps(m, g.roProps)); err != nil {
 		return nil, err
 	}
 	switch cir.StatusCode() {
@@ -114,7 +114,7 @@ func (g *generic[T]) Update(ctx context.Context, id string, obj *T) (*T, error) 
 	if m, err = g.encFn(obj); err != nil {
 		return nil, err
 	}
-	if cir, err = g.c.UpdateItemByIdWithResponse(ctx, g.be, g.ent, id, filterProps(m, g.skipProps)); err != nil {
+	if cir, err = g.c.UpdateItemByIdWithResponse(ctx, g.be, g.ent, id, excludeProps(m, g.roProps)); err != nil {
 		return nil, err
 	}
 	switch cir.StatusCode() {
@@ -139,7 +139,12 @@ func (g *generic[T]) BulkUpdate(ctx context.Context, objs []*T, mode api.BulkUpd
 		if err != nil {
 			return err
 		}
-		encObjs = append(encObjs, filterProps(o, g.skipProps))
+		switch mode {
+		case api.DELETE:
+			encObjs = append(encObjs, onlyProps(o, []string{g.idProp}))
+		default:
+			encObjs = append(encObjs, excludeProps(o, g.roProps))
+		}
 	}
 	if resp, err = g.c.BulkUpdateWithResponse(ctx, g.be, g.ent, api.BulkUpdateRequest{
 		Mode:    mode,
