@@ -33,11 +33,23 @@ type simpleExpr struct {
 func (s simpleExpr) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
 		"simple": map[string]interface{}{
-			"name": s.name,
-			"op":   s.op,
-			"val":  s.val,
+			"name": s.Name(),
+			"op":   s.Op(),
+			"val":  s.Value(),
 		},
 	})
+}
+
+func (s simpleExpr) Name() string {
+	return s.name
+}
+
+func (s simpleExpr) Op() Op {
+	return s.op
+}
+
+func (s simpleExpr) Value() interface{} {
+	return s.val
 }
 
 func wrapStr(v interface{}, q string) interface{} {
@@ -48,7 +60,7 @@ func wrapStr(v interface{}, q string) interface{} {
 }
 
 func (s simpleExpr) String() string {
-	return fmt.Sprintf(`%s %s %v`, s.name, s.op, wrapStr(s.val, "'"))
+	return fmt.Sprintf(`%s %s %v`, s.Name(), s.Op(), wrapStr(s.Value(), "'"))
 }
 
 type junctionExpr struct {
@@ -59,18 +71,26 @@ type junctionExpr struct {
 func (j junctionExpr) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
 		"junction": map[string]interface{}{
-			"sub": j.sub,
-			"op":  j.op,
+			"sub": j.Sub(),
+			"op":  j.Op(),
 		},
 	})
+}
+
+func (j junctionExpr) Op() Op {
+	return j.op
+}
+
+func (j junctionExpr) Sub() []FilterExpression {
+	return j.sub
 }
 
 func (j junctionExpr) String() string {
 	var sb strings.Builder
 	sb.WriteRune('(')
-	sb.WriteString(strings.Join(lo.Map(j.sub, func(item FilterExpression, _ int) string {
+	sb.WriteString(strings.Join(lo.Map(j.Sub(), func(item FilterExpression, _ int) string {
 		return "(" + item.String() + ")"
-	}), " "+string(j.op)+" "))
+	}), " "+string(j.Op())+" "))
 	sb.WriteRune(')')
 
 	return sb.String()
@@ -82,8 +102,12 @@ type notExpr struct {
 
 func (n notExpr) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
-		"not": n.expr,
+		"not": n.Sub(),
 	})
+}
+
+func (n notExpr) Sub() FilterExpression {
+	return n.expr
 }
 
 func (n notExpr) String() string {
@@ -110,10 +134,18 @@ type inExpr struct {
 func (i inExpr) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]interface{}{
 		"in": map[string]interface{}{
-			"name": i.name,
-			"val":  i.val,
+			"name": i.Name(),
+			"val":  i.Values(),
 		},
 	})
+}
+
+func (i inExpr) Name() string {
+	return i.name
+}
+
+func (i inExpr) Values() []interface{} {
+	return i.val
 }
 
 func (i inExpr) String() string {

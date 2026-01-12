@@ -50,3 +50,23 @@ type Builder interface {
 	Filter(FilterExpression) Builder
 	Build() Interface
 }
+
+type InExpression interface {
+	Name() string
+	Values() []interface{}
+}
+
+type JunctionExpression interface {
+	Op() Op
+	Sub() []FilterExpression
+}
+
+type NotExpression interface {
+	Sub() FilterExpression
+}
+
+type SimpleExpression interface {
+	Name() string
+	Op() Op
+	Value() interface{}
+}
