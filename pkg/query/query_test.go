@@ -165,6 +165,19 @@ func TestDecodeEncode(t *testing.T) {
 			strings.TrimSpace(string(data)))
 
 	})
+	t.Run("simple expression with various operators", func(t *testing.T) {
+		data, err = EncodeFilter(
+			Junction(OpAnd,
+				SimpleExpr("age", OpGt, 25),
+				SimpleExpr("age", OpLt, 150),
+			),
+		)
+		assert.NoError(t, err)
+		assert.NotNil(t, data)
+		assert.Equal(t, `{"junction":{"op":"AND","sub":[{"simple":{"name":"age","op":"\u003e","val":25}},`+
+			`{"simple":{"name":"age","op":"\u003c","val":150}}]}}`,
+			strings.TrimSpace(string(data)))
+	})
 }
 
 func TestToParams(t *testing.T) {

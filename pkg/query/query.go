@@ -24,11 +24,16 @@ import (
 )
 
 const (
-	OpAnd = Op("AND")
-	OpOr  = Op("OR")
-	OpNot = Op("NOT")
-	OpEq  = Op("=")
-	OpIn  = Op("IN")
+	OpAnd    = Op("AND")
+	OpOr     = Op("OR")
+	OpNot    = Op("NOT")
+	OpEq     = Op("=")
+	OpIsNull = Op("IS NULL")
+	OpGt     = Op(">")
+	OpLt     = Op("<")
+	OpNe     = Op("<>")
+	OpNe2    = Op("!=")
+	OpIn     = Op("IN")
 )
 
 var (
