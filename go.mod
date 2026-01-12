@@ -23,6 +23,7 @@ tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
 require (
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/jarcoal/httpmock v1.4.1
@@ -31,6 +32,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rkosegi/go-http-commons v0.0.2
 	github.com/rkosegi/slog-config v0.0.1
+	github.com/rkosegi/yaml-toolkit v1.0.67
 	github.com/samber/lo v1.52.0
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
