@@ -22,6 +22,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/jellydator/ttlcache/v3"
@@ -30,19 +31,13 @@ import (
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
 )
 
-type OpNotAllowedError struct {
-	Op string
-}
-
-func (o OpNotAllowedError) Error() string {
-	return o.Op + " is not allowed by configuration"
-}
+const notAllowedSuffix = " op is not allowed by configuration"
 
 var (
-	errCreateNotAllowed = OpNotAllowedError{Op: "create"}
-	errReadNotAllowed   = OpNotAllowedError{Op: "read"}
-	errUpdateNotAllowed = OpNotAllowedError{Op: "update"}
-	errDeleteNotAllowed = OpNotAllowedError{Op: "delete"}
+	errCreateNotAllowed = types.NewErrorWithStatus("create"+notAllowedSuffix, http.StatusMethodNotAllowed)
+	errReadNotAllowed   = types.NewErrorWithStatus("read"+notAllowedSuffix, http.StatusMethodNotAllowed)
+	errUpdateNotAllowed = types.NewErrorWithStatus("update"+notAllowedSuffix, http.StatusMethodNotAllowed)
+	errDeleteNotAllowed = types.NewErrorWithStatus("delete"+notAllowedSuffix, http.StatusMethodNotAllowed)
 )
 
 type PagedResult struct {

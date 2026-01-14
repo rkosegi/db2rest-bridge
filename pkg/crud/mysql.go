@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
@@ -56,11 +57,11 @@ func (be *bedb) QueryNamed(ctx context.Context, name string, args ...interface{}
 	res := make([]api.UntypedDto, 0)
 	qry, ok := be.config.Queries[name]
 	if !ok {
-		return nil, types.NewBackendErrorWithStatus("no such query: "+name, http.StatusNotFound)
+		return nil, types.NewErrorWithStatus("no such query: "+name, http.StatusNotFound)
 	}
 	be.logSQL(qry)
 	if res, err = be.fetchRows(ctx, qry, args...); err != nil {
-		return nil, types.NewBackendError("failed to execute query "+name, err)
+		return nil, types.WrapError("failed to execute query "+name, err)
 	}
 	return res, nil
 }
@@ -96,7 +97,7 @@ func (be *bedb) fetchOneItem(ctx context.Context, entity, id string, retrieve bo
 	qry := be.logSQL(createSingleSelectQuery(entity, be.config.IdColumn(entity)))
 	rows, err := be.config.DB().QueryContext(ctx, qry, id)
 	if err != nil {
-		return nil, err
+		return nil, types.WrapError("failed to fetch single row", err)
 	}
 	defer func(rows *sql.Rows) {
 		_ = rows.Close()
@@ -109,7 +110,7 @@ func (be *bedb) fetchOneItem(ctx context.Context, entity, id string, retrieve bo
 				colTypes []*sql.ColumnType
 			)
 			if cols, colTypes, err = getRowMetadata(rows); err != nil {
-				return nil, err
+				return nil, types.WrapError("failed to get row metadata", err)
 			}
 			return mapEntity(rows, cols, colTypes)
 		} else {
@@ -135,14 +136,14 @@ func (be *bedb) ListItems(ctx context.Context, entity string, qe query.Interface
 	qry = be.logSQL(fmt.Sprintf("SELECT COUNT(1) FROM `%s` WHERE %s", entity, qe.Filter().String()))
 	row := be.config.DB().QueryRowContext(ctx, qry)
 	if err = row.Scan(&cnt); err != nil {
-		return nil, err
+		return nil, types.WrapError("failed to determine resultset size", err)
 	}
 
 	qry = be.logSQL(fmt.Sprintf("SELECT * FROM `%s` %s", entity, qe.String()))
 
 	var res []api.UntypedDto
 	if res, err = be.fetchRows(ctx, qry); err != nil {
-		return nil, err
+		return nil, types.WrapError("failed to fetch rows", err)
 	}
 	return &PagedResult{
 		Data:       res,
@@ -163,17 +164,16 @@ func (be *bedb) fetchRows(ctx context.Context, qry string, args ...interface{}) 
 		cols     []string
 		colTypes []*sql.ColumnType
 	)
-	cols, colTypes, err = getRowMetadata(rows)
-	if err != nil {
-		return nil, err
+
+	if cols, colTypes, err = getRowMetadata(rows); err != nil {
+		return nil, types.WrapError("failed to get row metadata", err)
 	}
 
 	res := []api.UntypedDto{}
 	for rows.Next() {
 		var item api.UntypedDto
-		item, err = mapEntity(rows, cols, colTypes)
-		if err != nil {
-			return nil, err
+		if item, err = mapEntity(rows, cols, colTypes); err != nil {
+			return nil, types.WrapError("failed to map row to entity", err)
 		}
 		res = append(res, item)
 	}
@@ -190,16 +190,15 @@ func (be *bedb) ListEntities(ctx context.Context) ([]string, error) {
 	)
 	rows, err := be.config.DB().QueryContext(ctx, be.logSQL("SHOW TABLES"))
 	if err != nil {
-		return nil, err
+		return nil, types.WrapError("failed to list entity tables", err)
 	}
 	defer func() {
 		_ = rows.Close()
 	}()
 	for rows.Next() {
 		var t string
-		err = rows.Scan(&t)
-		if err != nil {
-			return nil, err
+		if err = rows.Scan(&t); err != nil {
+			return nil, types.WrapError("failed to scan table name", err)
 		}
 		res = append(res, t)
 	}
@@ -241,7 +240,7 @@ func (be *bedb) Update(ctx context.Context, entity, id string, body api.UntypedD
 	qry, values := createUpdateQuery(entity, be.config.IdColumn(entity), body)
 	values = append(values, id)
 	if _, err := be.config.DB().ExecContext(ctx, be.logSQL(qry), values...); err != nil {
-		return nil, err
+		return nil, types.WrapError("failed to update entity", err)
 	}
 	return be.fetchOneItem(ctx, entity, id, true)
 }
@@ -294,10 +293,14 @@ func (be *bedb) Create(ctx context.Context, entity string, body api.UntypedDto) 
 	}
 	qry, values := createInsertQuery(entity, body)
 	if res, err = be.config.DB().ExecContext(ctx, be.logSQL(qry), values...); err != nil {
-		return nil, err
+		var me *mysql.MySQLError
+		if errors.As(err, &me) {
+			return nil, types.WrapErrorWithStatus(me.Message, err, http.StatusInternalServerError)
+		}
 	}
+	// TODO: this could be configurable. There are scenarios where you don't use auto increment
 	if id, err = res.LastInsertId(); err != nil {
-		return nil, err
+		return nil, types.WrapError("failed to retrieve last insert ID", err)
 	}
 	return be.fetchOneItem(ctx, entity, strconv.FormatInt(id, 10), true)
 }
@@ -378,7 +381,7 @@ func (be *bedb) MultiCreate(ctx context.Context, entity string, replace bool, ob
 
 		if _, err = tx.ExecContext(ctx, be.logSQL(qry), values...); err != nil {
 			be.l.ErrorContext(ctx, "query execution failed, rolling back", "err", err)
-			return errors.Join(types.WrapErrorInBackendError(
+			return errors.Join(types.WrapErrorWithStatus(
 				"query failed: "+qry, err, http.StatusInternalServerError),
 				tx.Rollback())
 		}

@@ -20,10 +20,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"time"
 
-	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	ccfg "github.com/rkosegi/go-http-commons/config"
 )
 
@@ -102,39 +102,26 @@ func (be *BackendConfig) DB() *sql.DB {
 
 type Backends map[string]*BackendConfig
 
-type BackendError struct {
-	ErrObj api.ErrorObject
-	ie     error
-}
-
-func (b *BackendError) Error() string {
-	return b.ErrObj.Message
-}
-
-func (b *BackendError) Unwrap() error {
-	return b.ie
-}
-
-func NewBackendErrorWithStatus(msg string, status int) error {
-	return WrapErrorInBackendError(msg, nil, status)
-}
-
-func NewBackendError(msg string, err error) error {
-	return &BackendError{
-		ErrObj: api.ErrorObject{
-			Message: msg,
-		},
-		ie: err,
+func NewErrorWithStatus(msg string, status int) error {
+	return &ErrorWithStatus{
+		Status: status,
+		Msg:    msg,
 	}
 }
 
-func WrapErrorInBackendError(msg string, err error, status int) error {
-	return &BackendError{
-		ErrObj: api.ErrorObject{
-			Message: msg,
-			Code:    &status,
-		},
-		ie: err,
+func WrapError(msg string, err error) error {
+	return &ErrorWithStatus{
+		Status:  http.StatusInternalServerError,
+		Msg:     msg,
+		Wrapped: err,
+	}
+}
+
+func WrapErrorWithStatus(msg string, err error, status int) error {
+	return &ErrorWithStatus{
+		Status:  status,
+		Msg:     msg,
+		Wrapped: err,
 	}
 }
 
@@ -215,4 +202,18 @@ func (c *Config) CheckAndNormalize() error {
 		c.LoggingConfig.Format = &defaultLogFormat
 	}
 	return nil
+}
+
+type ErrorWithStatus struct {
+	Status  int
+	Msg     string
+	Wrapped error
+}
+
+func (h *ErrorWithStatus) Unwrap() error {
+	return h.Wrapped
+}
+
+func (h *ErrorWithStatus) Error() string {
+	return h.Msg
 }

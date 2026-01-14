@@ -18,11 +18,11 @@ package client
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
+	"github.com/rkosegi/db2rest-bridge/pkg/types"
 )
 
 func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, int, error) {
@@ -43,7 +43,7 @@ func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, int, 
 	if err != nil {
 		return nil, 0, err
 	}
-	if err = ensureResponseCode(resp.HTTPResponse, http.StatusOK); err != nil {
+	if err = ensureResponseCode(resp.HTTPResponse, http.StatusOK, resp.Body); err != nil {
 		return nil, 0, err
 	}
 	for _, e := range *resp.JSON200.Data {
@@ -73,9 +73,12 @@ func (g *generic[T]) Create(ctx context.Context, t *T) (*T, error) {
 	case http.StatusCreated:
 		return g.decFn(*cir.JSON201)
 	case http.StatusInternalServerError:
-		return nil, errors.New(cir.JSON500.Message)
+		return nil, &types.ErrorWithStatus{
+			Status: http.StatusInternalServerError,
+			Msg:    cir.JSON500.Message,
+		}
 	default:
-		return nil, invalidCode(cir.HTTPResponse)
+		return nil, errorFromResponse(cir.HTTPResponse)
 	}
 }
 
@@ -87,9 +90,9 @@ func (g *generic[T]) Get(ctx context.Context, id string) (*T, error) {
 		case http.StatusOK:
 			return g.decFn(*resp.JSON200)
 		case http.StatusNotFound:
-			return nil, errors.New(resp.JSON404.Message)
+			return nil, errorFromResponseWithMsg(resp.HTTPResponse, resp.JSON404.Message)
 		default:
-			return nil, invalidCode(resp.HTTPResponse)
+			return nil, errorFromResponse(resp.HTTPResponse)
 		}
 	}
 }
@@ -98,32 +101,34 @@ func (g *generic[T]) Delete(ctx context.Context, id string) error {
 	if resp, err := g.c.DeleteItemByIdWithResponse(ctx, g.be, g.ent, id); err != nil {
 		return err
 	} else {
-		if err = ensureResponseCode(resp.HTTPResponse, http.StatusNoContent); err != nil {
-			return err
+		switch resp.StatusCode() {
+		case http.StatusNoContent:
+			return nil
+		default:
+			return errorFromResponse(resp.HTTPResponse)
 		}
 	}
-	return nil
 }
 
 func (g *generic[T]) Update(ctx context.Context, id string, obj *T) (*T, error) {
 	var (
-		err error
-		m   map[string]interface{}
-		cir *api.UpdateItemByIdResponse
+		err  error
+		m    map[string]interface{}
+		resp *api.UpdateItemByIdResponse
 	)
 	if m, err = g.encFn(obj); err != nil {
 		return nil, err
 	}
-	if cir, err = g.c.UpdateItemByIdWithResponse(ctx, g.be, g.ent, id, excludeProps(m, g.roProps)); err != nil {
+	if resp, err = g.c.UpdateItemByIdWithResponse(ctx, g.be, g.ent, id, excludeProps(m, g.roProps)); err != nil {
 		return nil, err
 	}
-	switch cir.StatusCode() {
+	switch resp.StatusCode() {
 	case http.StatusAccepted:
-		return g.decFn(*cir.JSON202)
+		return g.decFn(*resp.JSON202)
 	case http.StatusNotFound:
-		return nil, errors.New(cir.JSON404.Message)
+		return nil, errorFromResponseWithMsg(resp.HTTPResponse, resp.JSON404.Message)
 	default:
-		return nil, invalidCode(cir.HTTPResponse)
+		return nil, errorFromResponse(resp.HTTPResponse)
 	}
 }
 
@@ -152,7 +157,7 @@ func (g *generic[T]) BulkUpdate(ctx context.Context, objs []*T, mode api.BulkUpd
 	}); err != nil {
 		return err
 	}
-	return ensureResponseCode(resp.HTTPResponse, http.StatusOK)
+	return ensureResponseCode(resp.HTTPResponse, http.StatusOK, resp.Body)
 }
 
 func (g *generic[T]) Query(ctx context.Context, name string, args []string) ([]api.UntypedDto, error) {
@@ -169,8 +174,8 @@ func (g *generic[T]) Query(ctx context.Context, name string, args []string) ([]a
 	case http.StatusOK:
 		return *resp.JSON200, nil
 	case http.StatusNotFound:
-		return nil, errors.New(resp.JSON404.Message)
+		return nil, errorFromResponseWithMsg(resp.HTTPResponse, resp.JSON404.Message)
 	default:
-		return nil, invalidCode(resp.HTTPResponse)
+		return nil, errorFromResponse(resp.HTTPResponse)
 	}
 }

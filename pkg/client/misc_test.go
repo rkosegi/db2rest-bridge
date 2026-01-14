@@ -51,10 +51,10 @@ func TestEnsureResponseCode(t *testing.T) {
 	assert.Error(t, ensureResponseCode(&http.Response{
 		StatusCode: http.StatusNotFound,
 		Body:       io.NopCloser(strings.NewReader("Not found")),
-	}, http.StatusOK))
+	}, http.StatusOK, nil))
 
 	assert.NoError(t, ensureResponseCode(&http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader("Not found")),
-	}, http.StatusOK))
+	}, http.StatusOK, nil))
 }

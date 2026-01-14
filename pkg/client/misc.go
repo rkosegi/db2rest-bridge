@@ -19,11 +19,11 @@ package client
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net/http"
 	"slices"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
+	"github.com/rkosegi/db2rest-bridge/pkg/types"
 	"github.com/samber/lo"
 )
 
@@ -41,22 +41,24 @@ func onlyProps(in api.UntypedDto, props []string) api.UntypedDto {
 	})
 }
 
-func ensureResponseCode(r *http.Response, code int) error {
+// ensureResponseCode creates error if status code in HTTP response does not match expected one.
+func ensureResponseCode(r *http.Response, code int, body []byte) error {
 	if r.StatusCode != code {
-		return fmt.Errorf("unexpected error code: %d, wanted: %d, body: %s",
-			r.StatusCode, code, tryConsumeResponseBody(r))
+		return &types.ErrorWithStatus{
+			Status: code,
+			Msg: fmt.Sprintf("unexpected error code: %d, wanted: %d, body: %s", r.StatusCode, code,
+				string(bytes.TrimSpace(body)))}
 	}
 	return nil
 }
 
-func invalidCode(r *http.Response) error {
-	return fmt.Errorf("unexpected error code: %d: %s", r.StatusCode, tryConsumeResponseBody(r))
+func errorFromResponse(r *http.Response) error {
+	return errorFromResponseWithMsg(r, fmt.Sprintf("unexpected error code: %d", r.StatusCode))
 }
 
-func tryConsumeResponseBody(r *http.Response) string {
-	var out bytes.Buffer
-	if _, err := io.Copy(&out, r.Body); err != nil {
-		return ""
+func errorFromResponseWithMsg(r *http.Response, msg string) error {
+	return &types.ErrorWithStatus{
+		Status: r.StatusCode,
+		Msg:    msg,
 	}
-	return out.String()
 }

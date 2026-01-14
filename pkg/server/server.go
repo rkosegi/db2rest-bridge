@@ -17,6 +17,7 @@ limitations under the License.
 package server
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -56,18 +57,11 @@ var (
 
 	out = output.NewBuilder().
 		WithErrorMapper(func(w http.ResponseWriter, err error) bool {
-			if _, ok := err.(crud.OpNotAllowedError); ok {
-				w.Header().Del("Content-Type")
-				w.WriteHeader(http.StatusMethodNotAllowed)
-				return true
-			}
-			return false
-		}).
-		WithErrorMapper(func(w http.ResponseWriter, err error) bool {
-			if be, ok := err.(*types.BackendError); ok {
-				w.Header().Del("Content-Type")
-				if be.ErrObj.Code != nil {
-					w.WriteHeader(*be.ErrObj.Code)
+			var be *types.ErrorWithStatus
+			if errors.As(err, &be) {
+				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+				if be.Status != 0 {
+					w.WriteHeader(be.Status)
 				}
 				_, _ = w.Write([]byte(fmt.Sprintf("%v", err)))
 				return true
