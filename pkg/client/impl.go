@@ -17,10 +17,11 @@ limitations under the License.
 package client
 
 import (
-	"encoding/json"
 	"log/slog"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
+	"github.com/rkosegi/yaml-toolkit/dom"
+	"github.com/rkosegi/yaml-toolkit/fluent"
 )
 
 type generic[T any] struct {
@@ -39,33 +40,15 @@ type generic[T any] struct {
 }
 
 func defaultEncoderFn[T any](obj *T) (api.UntypedDto, error) {
-	var (
-		err  error
-		m    api.UntypedDto
-		data []byte
-	)
-	if data, err = json.Marshal(obj); err != nil {
+	if x, err := fluent.Transform[api.UntypedDto](obj, dom.DefaultJsonCodec()); err != nil {
 		return nil, err
+	} else {
+		return *x, nil
 	}
-	if err = json.Unmarshal(data, &m); err != nil {
-		return nil, err
-	}
-	return m, nil
 }
 
 func defaultDecoderFn[T any](m api.UntypedDto) (*T, error) {
-	var (
-		err  error
-		t    T
-		data []byte
-	)
-	if data, err = json.Marshal(m); err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(data, &t); err != nil {
-		return nil, err
-	}
-	return &t, nil
+	return fluent.Transform[T](m, dom.DefaultJsonCodec())
 }
 
 // deprecated: use ReadOnlyProperties.

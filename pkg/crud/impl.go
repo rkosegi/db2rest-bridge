@@ -49,6 +49,21 @@ type bedb struct {
 	mdCache *ttlcache.Cache[string, map[string]*sql.ColumnType]
 }
 
+func newMySQL(be *types.BackendConfig, name string, logger *slog.Logger) Interface {
+	impl := &bedb{
+		config: be,
+		l:      logger.With("backend", name),
+	}
+	c := ttlcache.New[string, map[string]*sql.ColumnType](
+		ttlcache.WithTTL[string, map[string]*sql.ColumnType](1*time.Hour),
+		ttlcache.WithCapacity[string, map[string]*sql.ColumnType](250),
+		ttlcache.WithLoader[string, map[string]*sql.ColumnType](impl),
+	)
+	impl.mdCache = c
+	go impl.mdCache.Start()
+	return impl
+}
+
 func (be *bedb) QueryNamed(ctx context.Context, name string, args ...interface{}) ([]api.UntypedDto, error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
@@ -59,8 +74,7 @@ func (be *bedb) QueryNamed(ctx context.Context, name string, args ...interface{}
 	if !ok {
 		return nil, types.NewErrorWithStatus("no such query: "+name, http.StatusNotFound)
 	}
-	be.logSQL(qry)
-	if res, err = be.fetchRows(ctx, qry, args...); err != nil {
+	if res, err = be.fetchRows(ctx, be.logSQL(qry), args...); err != nil {
 		return nil, types.WrapError("failed to execute query "+name, err)
 	}
 	return res, nil
