@@ -17,6 +17,7 @@ limitations under the License.
 package server
 
 import (
+	"context"
 	"io"
 	"net/http"
 
@@ -31,12 +32,12 @@ type BackendHandler func(c crud.Interface, writer http.ResponseWriter, request *
 
 type Interface interface {
 	io.Closer
-	Run() error
+	Run(ctx context.Context) error
 }
 
 func New(cfg *types.Config) Interface {
 	return &restServer{
-		cfg:    cfg,
-		logger: xlog.MustNew(*cfg.LoggingConfig.Level, xlog.LogFormat(*cfg.LoggingConfig.Format)).Logger(),
+		cfg: cfg,
+		l:   xlog.MustNew(*cfg.LoggingConfig.Level, xlog.LogFormat(*cfg.LoggingConfig.Format)).Logger(),
 	}
 }

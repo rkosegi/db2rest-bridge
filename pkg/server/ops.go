@@ -69,12 +69,12 @@ func (rs *restServer) CreateItem(w http.ResponseWriter, r *http.Request, backend
 		var err error
 		body := make(api.UntypedDto)
 		if err = json.NewDecoder(request.Body).Decode(&body); err != nil {
-			rs.logger.Error("can't decode body", "backend", backend, "entity", entity, "error", err)
+			rs.l.Error("can't decode body", "backend", backend, "entity", entity, "error", err)
 			out.SendWithStatus(writer, err, http.StatusBadRequest)
 			return
 		} else {
 			if body, err = c.Create(r.Context(), entity, body); err != nil {
-				rs.logger.Error("can't create item", "backend", backend, "entity", entity, "error", err)
+				rs.l.Error("can't create item", "backend", backend, "entity", entity, "error", err)
 				out.SendWithStatus(writer, api.ErrorObject{
 					Message: err.Error(),
 				}, http.StatusInternalServerError)
@@ -203,5 +203,4 @@ func (rs *restServer) QueryNamed(w http.ResponseWriter, r *http.Request, backend
 			out.SendWithStatus(writer, res, http.StatusOK)
 		}
 	})
-
 }

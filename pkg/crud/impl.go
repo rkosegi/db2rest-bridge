@@ -42,29 +42,38 @@ var (
 	dateTimeLayouts = []string{time.RFC3339, time.DateOnly}
 )
 
-type bedb struct {
+type impl struct {
 	io.Closer
 	config  *types.BackendConfig
 	l       *slog.Logger
 	mdCache *ttlcache.Cache[string, map[string]*sql.ColumnType]
 }
 
-func newMySQL(be *types.BackendConfig, name string, logger *slog.Logger) Interface {
-	impl := &bedb{
-		config: be,
-		l:      logger.With("backend", name),
+type Opt func(*impl)
+
+func WithLogger(l *slog.Logger) Opt {
+	return func(i *impl) {
+		i.l = l
 	}
-	c := ttlcache.New[string, map[string]*sql.ColumnType](
-		ttlcache.WithTTL[string, map[string]*sql.ColumnType](1*time.Hour),
-		ttlcache.WithCapacity[string, map[string]*sql.ColumnType](250),
-		ttlcache.WithLoader[string, map[string]*sql.ColumnType](impl),
-	)
-	impl.mdCache = c
-	go impl.mdCache.Start()
-	return impl
 }
 
-func (be *bedb) QueryNamed(ctx context.Context, name string, args ...interface{}) ([]api.UntypedDto, error) {
+func newImpl(be *types.BackendConfig, opts ...Opt) Interface {
+	i := &impl{config: be}
+	for _, opt := range append([]Opt{
+		WithLogger(slog.Default()),
+	}, opts...) {
+		opt(i)
+	}
+	i.mdCache = ttlcache.New[string, map[string]*sql.ColumnType](
+		ttlcache.WithTTL[string, map[string]*sql.ColumnType](1*time.Hour),
+		ttlcache.WithCapacity[string, map[string]*sql.ColumnType](250),
+		ttlcache.WithLoader[string, map[string]*sql.ColumnType](i),
+	)
+	go i.mdCache.Start()
+	return i
+}
+
+func (be *impl) QueryNamed(ctx context.Context, name string, args ...interface{}) ([]api.UntypedDto, error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
@@ -80,7 +89,7 @@ func (be *bedb) QueryNamed(ctx context.Context, name string, args ...interface{}
 	return res, nil
 }
 
-func (be *bedb) Load(c *ttlcache.Cache[string, map[string]*sql.ColumnType], key string) *ttlcache.Item[string, map[string]*sql.ColumnType] {
+func (be *impl) Load(c *ttlcache.Cache[string, map[string]*sql.ColumnType], key string) *ttlcache.Item[string, map[string]*sql.ColumnType] {
 	be.l.Debug("loading entity metadata into cache", "entity", key)
 	qry := be.logSQL(createSingleSelectQuery(key, be.config.IdColumn(key)))
 
@@ -102,12 +111,12 @@ func (be *bedb) Load(c *ttlcache.Cache[string, map[string]*sql.ColumnType], key 
 	}
 }
 
-func (be *bedb) logSQL(sql string) string {
+func (be *impl) logSQL(sql string) string {
 	be.l.Debug("SQL", "query", sql)
 	return sql
 }
 
-func (be *bedb) fetchOneItem(ctx context.Context, entity, id string, retrieve bool) (res api.UntypedDto, err error) {
+func (be *impl) fetchOneItem(ctx context.Context, entity, id string, retrieve bool) (res api.UntypedDto, err error) {
 	qry := be.logSQL(createSingleSelectQuery(entity, be.config.IdColumn(entity)))
 	rows, err := be.config.DB().QueryContext(ctx, qry, id)
 	if err != nil {
@@ -134,7 +143,7 @@ func (be *bedb) fetchOneItem(ctx context.Context, entity, id string, retrieve bo
 	return res, nil
 }
 
-func (be *bedb) ListItems(ctx context.Context, entity string, qe query.Interface) (*PagedResult, error) {
+func (be *impl) ListItems(ctx context.Context, entity string, qe query.Interface) (*PagedResult, error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
@@ -166,7 +175,7 @@ func (be *bedb) ListItems(ctx context.Context, entity string, qe query.Interface
 	}, nil
 }
 
-func (be *bedb) fetchRows(ctx context.Context, qry string, args ...interface{}) ([]api.UntypedDto, error) {
+func (be *impl) fetchRows(ctx context.Context, qry string, args ...interface{}) ([]api.UntypedDto, error) {
 	rows, err := be.config.DB().QueryContext(ctx, qry, args...)
 	if err != nil {
 		return nil, err
@@ -194,7 +203,7 @@ func (be *bedb) fetchRows(ctx context.Context, qry string, args ...interface{}) 
 	return res, nil
 }
 
-func (be *bedb) ListEntities(ctx context.Context) ([]string, error) {
+func (be *impl) ListEntities(ctx context.Context) ([]string, error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
@@ -219,7 +228,7 @@ func (be *bedb) ListEntities(ctx context.Context) ([]string, error) {
 	return res, nil
 }
 
-func (be *bedb) Exists(ctx context.Context, entity, id string) (bool, error) {
+func (be *impl) Exists(ctx context.Context, entity, id string) (bool, error) {
 	if !*be.config.Read {
 		return false, errReadNotAllowed
 	}
@@ -227,14 +236,14 @@ func (be *bedb) Exists(ctx context.Context, entity, id string) (bool, error) {
 	return r != nil, err
 }
 
-func (be *bedb) Get(ctx context.Context, entity, id string) (res api.UntypedDto, err error) {
+func (be *impl) Get(ctx context.Context, entity, id string) (res api.UntypedDto, err error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
 	return be.fetchOneItem(ctx, entity, id, true)
 }
 
-func (be *bedb) Delete(ctx context.Context, entity, id string) (err error) {
+func (be *impl) Delete(ctx context.Context, entity, id string) (err error) {
 	if !*be.config.Delete {
 		return errDeleteNotAllowed
 	}
@@ -243,7 +252,7 @@ func (be *bedb) Delete(ctx context.Context, entity, id string) (err error) {
 	return err
 }
 
-func (be *bedb) Update(ctx context.Context, entity, id string, body api.UntypedDto) (api.UntypedDto, error) {
+func (be *impl) Update(ctx context.Context, entity, id string, body api.UntypedDto) (api.UntypedDto, error) {
 	if !*be.config.Update {
 		return nil, errUpdateNotAllowed
 	}
@@ -292,7 +301,7 @@ func remapBody(md *ttlcache.Item[string, map[string]*sql.ColumnType], body api.U
 	return body
 }
 
-func (be *bedb) Create(ctx context.Context, entity string, body api.UntypedDto) (api.UntypedDto, error) {
+func (be *impl) Create(ctx context.Context, entity string, body api.UntypedDto) (api.UntypedDto, error) {
 	if !*be.config.Create {
 		return nil, errCreateNotAllowed
 	}
@@ -319,7 +328,7 @@ func (be *bedb) Create(ctx context.Context, entity string, body api.UntypedDto) 
 	return be.fetchOneItem(ctx, entity, strconv.FormatInt(id, 10), true)
 }
 
-func (be *bedb) MultiDelete(ctx context.Context, entity string, ids []interface{}) error {
+func (be *impl) MultiDelete(ctx context.Context, entity string, ids []interface{}) error {
 	if !*be.config.Delete {
 		return errDeleteNotAllowed
 	}
@@ -335,7 +344,7 @@ func (be *bedb) MultiDelete(ctx context.Context, entity string, ids []interface{
 	}
 }
 
-func (be *bedb) MultiUpdate(ctx context.Context, entity string, objs []api.UntypedDto) error {
+func (be *impl) MultiUpdate(ctx context.Context, entity string, objs []api.UntypedDto) error {
 	var (
 		err error
 		tx  *sql.Tx
@@ -365,7 +374,7 @@ func (be *bedb) MultiUpdate(ctx context.Context, entity string, objs []api.Untyp
 	return tx.Commit()
 }
 
-func (be *bedb) MultiCreate(ctx context.Context, entity string, replace bool, objs []api.UntypedDto) error {
+func (be *impl) MultiCreate(ctx context.Context, entity string, replace bool, objs []api.UntypedDto) error {
 	var (
 		err error
 		tx  *sql.Tx

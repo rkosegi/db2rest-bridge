@@ -18,14 +18,12 @@ package crud
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"io"
 	"log/slog"
 	"net/http"
-	"time"
 
-	"github.com/jellydator/ttlcache/v3"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
@@ -85,17 +83,6 @@ func (m *NameToCrudMap) Close() error {
 	return errors.Join(errs...)
 }
 
-func New(be *types.BackendConfig, n string, logger *slog.Logger) Interface {
-	impl := &bedb{
-		config: be,
-		l:      logger.With("backend", n),
-	}
-	c := ttlcache.New[string, map[string]*sql.ColumnType](
-		ttlcache.WithTTL[string, map[string]*sql.ColumnType](1*time.Hour),
-		ttlcache.WithCapacity[string, map[string]*sql.ColumnType](250),
-		ttlcache.WithLoader[string, map[string]*sql.ColumnType](impl),
-	)
-	impl.mdCache = c
-	go impl.mdCache.Start()
-	return impl
+func New(be *types.BackendConfig, logger *slog.Logger) Interface {
+	return newImpl(be, WithLogger(logger))
 }

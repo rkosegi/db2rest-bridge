@@ -17,6 +17,7 @@ limitations under the License.
 package types
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -51,6 +52,8 @@ type BackendConfig struct {
 	IdMap *map[string]string `yaml:"id_map,omitempty"`
 	// Named queries that could be executed with optional parameters
 	Queries map[string]string `yaml:"queries"`
+	// DDL queries to be executed at start. Be careful here.
+	InitDDLs []string `yaml:"init_ddls,omitempty"`
 
 	MaxOpenConnections *int           `yaml:"max_open_connections,omitempty"`
 	MaxIdleConnections *int           `yaml:"max_idle_connections,omitempty"`
@@ -68,7 +71,7 @@ func (be *BackendConfig) IdColumn(ent string) string {
 	return "id"
 }
 
-func (be *BackendConfig) Open() error {
+func (be *BackendConfig) Open(ctx context.Context) error {
 	db, err := sql.Open(*be.Driver, be.DSN)
 	if err != nil {
 		return err
@@ -84,6 +87,11 @@ func (be *BackendConfig) Open() error {
 	}
 	if be.ConnMaxIdleTime != nil {
 		db.SetConnMaxIdleTime(*be.ConnMaxIdleTime)
+	}
+	for _, ddl := range be.InitDDLs {
+		if _, err = db.ExecContext(ctx, ddl); err != nil {
+			return err
+		}
 	}
 	be.db = db
 	return nil

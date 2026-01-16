@@ -17,14 +17,14 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"net/http"
-	"os"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/server"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
-	"gopkg.in/yaml.v3"
+	"github.com/rkosegi/yaml-toolkit/fluent"
 )
 
 const (
@@ -38,30 +38,13 @@ func main() {
 	)
 	flag.StringVar(&cfgFile, "config", "config.yaml", "config file")
 	flag.Parse()
-	cfg, err := loadConfig(cfgFile)
-	if err != nil {
+
+	cfg := fluent.NewConfigHelper[types.Config]().Load(cfgFile).Result()
+	if err = cfg.CheckAndNormalize(); err != nil {
 		panic(err)
 	}
 	srv := server.New(cfg)
-	if err = srv.Run(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err = srv.Run(context.Background()); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		panic(err)
 	}
-}
-
-func loadConfig(cfgFile string) (*types.Config, error) {
-	var (
-		cfg  types.Config
-		err  error
-		data []byte
-	)
-	if data, err = os.ReadFile(cfgFile); err != nil {
-		return nil, err
-	}
-	if err = yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-	if err = cfg.CheckAndNormalize(); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
 }

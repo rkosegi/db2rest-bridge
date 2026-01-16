@@ -17,6 +17,7 @@ limitations under the License.
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -75,25 +76,24 @@ type restServer struct {
 	cfg     *types.Config
 	server  *http.Server
 	crudMap crud.NameToCrudMap
-	logger  *slog.Logger
+	l       *slog.Logger
 }
 
 func (rs *restServer) Close() error {
 	return rs.crudMap.Close()
 }
 
-func (rs *restServer) Run() (err error) {
+func (rs *restServer) Run(ctx context.Context) (err error) {
 	rs.crudMap = make(crud.NameToCrudMap)
 	for n, be := range rs.cfg.Backends {
-		rs.logger.Debug("Opening backend", "name", n)
-		if err = be.Open(); err != nil {
-			rs.logger.Error("Unable to open backend", "name", n)
+		rs.l.Debug("Opening backend", "name", n)
+		if err = be.Open(ctx); err != nil {
+			rs.l.Error("Unable to open backend", "backend", n)
 			return err
 		}
-		rs.crudMap[n] = crud.New(be, n, rs.logger)
+		rs.crudMap[n] = crud.New(be, rs.l.With("name", n))
 	}
-	rs.logger.Info("starting server", "listen address", rs.cfg.Server.ListenAddress)
-	mws := []api.MiddlewareFunc{middlewares.NewLoggingBuilder().WithLogger(rs.logger).Build()}
+	mws := []api.MiddlewareFunc{middlewares.NewLoggingBuilder().WithLogger(rs.l).Build()}
 
 	cors := handlers.CORS(
 		handlers.AllowedMethods([]string{
@@ -140,17 +140,14 @@ func (rs *restServer) Run() (err error) {
 		r.Handle(rs.cfg.Server.Telemetry.Path, promhttp.Handler())
 	}
 
-	rs.server = &http.Server{
-		Addr: rs.cfg.Server.ListenAddress,
+	rs.l.DebugContext(ctx, "starting server", "listen-address", rs.cfg.Server.ListenAddress,
+		"api-prefix", rs.cfg.Server.APIPrefix)
+
+	return rs.cfg.Server.RunUntil(&http.Server{
 		Handler: cors(api.HandlerWithOptions(rs, api.GorillaServerOptions{
 			BaseURL:     rs.cfg.Server.APIPrefix,
 			BaseRouter:  r,
 			Middlewares: mws,
 		})),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  30 * time.Second,
-	}
-
-	return rs.cfg.Server.RunForever(rs.server)
+	}, ctx.Done())
 }
