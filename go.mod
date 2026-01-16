@@ -32,7 +32,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rkosegi/go-http-commons v0.0.2
 	github.com/rkosegi/slog-config v0.0.1
-	github.com/rkosegi/yaml-toolkit v1.0.67
+	github.com/rkosegi/yaml-toolkit v1.0.68
 	github.com/samber/lo v1.52.0
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
