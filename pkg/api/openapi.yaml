@@ -41,6 +41,8 @@ tags:
     description: Entity related operations
   - name: crud
     description: CRUD operations
+  - name: info
+    description: Informational operations
 paths:
   /backends:
     get:
@@ -300,6 +302,22 @@ paths:
           description: Delete is not allowed.
       tags:
         - crud
+
+  /version:
+    get:
+      description: Get system version info
+      operationId: getVersionInfo
+      summary: Get version info
+      responses:
+        '200':
+          description: Version info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionInfo"
+      tags:
+        - info
+
 components:
   parameters:
     backend:
@@ -391,3 +409,19 @@ components:
           additionalProperties: true
       required:
         - message
+
+    VersionInfo:
+      type: object
+      properties:
+        version:
+          description: Application version
+          type: string
+        revision:
+          description: VCS revision
+          type: string
+        build-time:
+          description: Time when application was built
+          type: string
+        build-user:
+          description: User who built application
+          type: string

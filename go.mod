@@ -30,6 +30,7 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/prometheus/client_golang v1.23.2
+	github.com/prometheus/common v0.67.1
 	github.com/rkosegi/go-http-commons v0.0.3-0.20260114091027-52d8763b0c72
 	github.com/rkosegi/slog-config v0.0.1
 	github.com/rkosegi/yaml-toolkit v1.0.68
@@ -59,7 +60,6 @@ require (
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.67.1 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/speakeasy-api/openapi-overlay v0.9.0 // indirect

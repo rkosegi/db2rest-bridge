@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/prometheus/common/version"
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/crud"
 )
@@ -43,6 +44,15 @@ func (rs *restServer) handleItem(writer http.ResponseWriter, request *http.Reque
 	rs.handleEntity(writer, request, backend, entity, func(c crud.Interface, entity string, writer http.ResponseWriter, request *http.Request) {
 		handler(c, entity, item, writer, request)
 	})
+}
+
+func (rs *restServer) GetVersionInfo(w http.ResponseWriter, _ *http.Request) {
+	out.SendWithStatus(w, &api.VersionInfo{
+		BuildTime: &version.BuildDate,
+		BuildUser: &version.BuildUser,
+		Revision:  &version.Revision,
+		Version:   &version.Version,
+	}, http.StatusOK)
 }
 
 func extractIds(objs []api.UntypedDto, idCol string) ([]interface{}, error) {

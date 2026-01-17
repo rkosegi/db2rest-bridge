@@ -82,6 +82,21 @@ type PagedResult struct {
 // UntypedDto Unstructured content, dictionary of string-to-any values.
 type UntypedDto map[string]interface{}
 
+// VersionInfo defines model for VersionInfo.
+type VersionInfo struct {
+	// BuildTime Time when application was built
+	BuildTime *string `json:"build-time,omitempty"`
+
+	// BuildUser User who built application
+	BuildUser *string `json:"build-user,omitempty"`
+
+	// Revision VCS revision
+	Revision *string `json:"revision,omitempty"`
+
+	// Version Application version
+	Version *string `json:"version,omitempty"`
+}
+
 // Backend defines model for backend.
 type Backend = string
 
@@ -211,6 +226,9 @@ type ClientInterface interface {
 	// ListBackends request
 	ListBackends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetVersionInfo request
+	GetVersionInfo(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// QueryNamed request
 	QueryNamed(ctx context.Context, backend Backend, name string, params *QueryNamedParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -247,6 +265,18 @@ type ClientInterface interface {
 
 func (c *Client) ListBackends(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListBackendsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetVersionInfo(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetVersionInfoRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -411,6 +441,33 @@ func NewListBackendsRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/backends")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetVersionInfoRequest generates requests for GetVersionInfo
+func NewGetVersionInfoRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/version")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -995,6 +1052,9 @@ type ClientWithResponsesInterface interface {
 	// ListBackendsWithResponse request
 	ListBackendsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListBackendsResponse, error)
 
+	// GetVersionInfoWithResponse request
+	GetVersionInfoWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetVersionInfoResponse, error)
+
 	// QueryNamedWithResponse request
 	QueryNamedWithResponse(ctx context.Context, backend Backend, name string, params *QueryNamedParams, reqEditors ...RequestEditorFn) (*QueryNamedResponse, error)
 
@@ -1045,6 +1105,28 @@ func (r ListBackendsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ListBackendsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetVersionInfoResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *VersionInfo
+}
+
+// Status returns HTTPResponse.Status
+func (r GetVersionInfoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetVersionInfoResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1259,6 +1341,15 @@ func (c *ClientWithResponses) ListBackendsWithResponse(ctx context.Context, reqE
 	return ParseListBackendsResponse(rsp)
 }
 
+// GetVersionInfoWithResponse request returning *GetVersionInfoResponse
+func (c *ClientWithResponses) GetVersionInfoWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetVersionInfoResponse, error) {
+	rsp, err := c.GetVersionInfo(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetVersionInfoResponse(rsp)
+}
+
 // QueryNamedWithResponse request returning *QueryNamedResponse
 func (c *ClientWithResponses) QueryNamedWithResponse(ctx context.Context, backend Backend, name string, params *QueryNamedParams, reqEditors ...RequestEditorFn) (*QueryNamedResponse, error) {
 	rsp, err := c.QueryNamed(ctx, backend, name, params, reqEditors...)
@@ -1380,6 +1471,32 @@ func ParseListBackendsResponse(rsp *http.Response) (*ListBackendsResponse, error
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest NameList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetVersionInfoResponse parses an HTTP response from a GetVersionInfoWithResponse call
+func ParseGetVersionInfoResponse(rsp *http.Response) (*GetVersionInfoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetVersionInfoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VersionInfo
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1627,6 +1744,9 @@ type ServerInterface interface {
 	// List all configured backends
 	// (GET /backends)
 	ListBackends(w http.ResponseWriter, r *http.Request)
+	// Get version info
+	// (GET /version)
+	GetVersionInfo(w http.ResponseWriter, r *http.Request)
 	// Execute named query and return the result set
 	// (GET /{backend}/_query/{name})
 	QueryNamed(w http.ResponseWriter, r *http.Request, backend Backend, name string, params QueryNamedParams)
@@ -1670,6 +1790,20 @@ func (siw *ServerInterfaceWrapper) ListBackends(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListBackends(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetVersionInfo operation middleware
+func (siw *ServerInterfaceWrapper) GetVersionInfo(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVersionInfo(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2173,6 +2307,8 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/backends", wrapper.ListBackends).Methods("GET")
 
+	r.HandleFunc(options.BaseURL+"/version", wrapper.GetVersionInfo).Methods("GET")
+
 	r.HandleFunc(options.BaseURL+"/{backend}/_query/{name}", wrapper.QueryNamed).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/{backend}/entities", wrapper.ListEntities).Methods("GET")
@@ -2197,45 +2333,48 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"TfTXBPf5fwMAAP//I/r+HfIkAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
