@@ -35,6 +35,7 @@ LDFLAGS			+= -X ${PKG}/version.BuildUser=$(shell id -u -n)@$(shell hostname)
 LDFLAGS			+= -X ${PKG}/version.BuildDate=${BUILD_DATE}
 
 .DEFAULT_GOAL := build-local
+.PHONY: it
 
 update-go-deps:
 	@for m in $$(go list -mod=readonly -m -f '{{ if and (not .Indirect) (not .Main)}}{{.Path}}{{end}}' all); do \
@@ -65,6 +66,14 @@ test:
 
 gen:
 	go generate pkg/api/api.go
+
+prepare:
+	python3 -m venv .venv
+	. .venv/bin/activate
+	pip install pre-commit robotframework==7.4.1 robotframework-jsonlibrary==0.5 robotframework-requests==0.9.7
+
+it:
+	python3 -m robot --outputdir .cache/systemtests systemtests/crud-suite.robot
 
 bump-patch-version:
 	@echo Current: $(VERSION)
