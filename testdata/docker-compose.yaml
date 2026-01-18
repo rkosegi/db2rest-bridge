@@ -16,27 +16,27 @@ services:
   ui:
     environment:
       PORT: '8080'
-      SWAGGER_JSON_URL: 'http://127.0.0.1:22001/spec/opeanapi.v1.json'
-    image: swaggerapi/swagger-ui:v5.17.9
+      SWAGGER_JSON_URL: 'http://127.0.0.1:22001/spec/openapi.v1.json'
+    image: swaggerapi/swagger-ui:v5.31.0
     ports:
       - 8080:8080
   db2rest:
-    image: ghcr.io/rkosegi/db2rest-bridge:v1.0.0
+    image: ghcr.io/rkosegi/db2rest-bridge:v1.0.6
     volumes:
       - ./config.yaml:/config.yaml:ro
     ports:
       - 22001:22001
   db:
+    hostname: db
+    image: mariadb:12.1.2
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     container_name: db
     environment:
-      MYSQL_ROOT_PASSWORD: demo
+      MYSQL_ROOT_PASSWORD: '123456'
       MYSQL_DATABASE: demo
       MYSQL_USER: demo
-      MYSQL_PASSWORD: demo
+      MYSQL_PASSWORD: '123456'
       TZ: UTC
-    hostname: db
-    image: mariadb:10.5
     ports:
       - 3306:3306
     volumes:
