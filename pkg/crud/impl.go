@@ -28,7 +28,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jellydator/ttlcache/v3"
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
@@ -101,14 +100,14 @@ func (be *impl) Load(c *ttlcache.Cache[string, map[string]*sql.ColumnType], key 
 		_ = rows.Close()
 	}(rows)
 
-	if _, colTypes, err := getRowMetadata(rows); err != nil {
+	var colTypes []*sql.ColumnType
+	if _, colTypes, err = getRowMetadata(rows); err != nil {
 		be.l.Warn("unable to fetch row metadata", "entity", key, "err", err)
 		return nil
-	} else {
-		return c.Set(key, lo.Associate(colTypes, func(item *sql.ColumnType) (string, *sql.ColumnType) {
-			return item.Name(), item
-		}), ttlcache.DefaultTTL)
 	}
+	return c.Set(key, lo.Associate(colTypes, func(item *sql.ColumnType) (string, *sql.ColumnType) {
+		return item.Name(), item
+	}), ttlcache.DefaultTTL)
 }
 
 func (be *impl) logSQL(sql string) string {
@@ -136,9 +135,9 @@ func (be *impl) fetchOneItem(ctx context.Context, entity, id string, retrieve bo
 				return nil, types.WrapError("failed to get row metadata", err)
 			}
 			return mapEntity(rows, cols, colTypes)
-		} else {
-			res = make(api.UntypedDto, 1)
 		}
+
+		res = make(api.UntypedDto, 1)
 	}
 	return res, nil
 }
@@ -316,10 +315,7 @@ func (be *impl) Create(ctx context.Context, entity string, body api.UntypedDto) 
 	}
 	qry, values := createInsertQuery(entity, body)
 	if res, err = be.config.DB().ExecContext(ctx, be.logSQL(qry), values...); err != nil {
-		var me *mysql.MySQLError
-		if errors.As(err, &me) {
-			return nil, types.WrapErrorWithStatus(me.Message, err, http.StatusInternalServerError)
-		}
+		return nil, err
 	}
 	// TODO: this could be configurable. There are scenarios where you don't use auto increment
 	if id, err = res.LastInsertId(); err != nil {

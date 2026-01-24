@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
@@ -58,6 +59,12 @@ var (
 
 	out = output.NewBuilder().
 		WithErrorMapper(func(w http.ResponseWriter, err error) bool {
+			var me *mysql.MySQLError
+			if errors.As(err, &me) {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(me.Message))
+				return true
+			}
 			var be *types.ErrorWithStatus
 			if errors.As(err, &be) {
 				w.Header().Set("Content-Type", "text/plain; charset=utf-8")

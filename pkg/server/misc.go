@@ -26,12 +26,16 @@ import (
 )
 
 func (rs *restServer) handleBackend(writer http.ResponseWriter, request *http.Request, backend string, handler BackendHandler) {
-	if c, ok := rs.crudMap[backend]; !ok {
+	var (
+		c  crud.Interface
+		ok bool
+	)
+	if c, ok = rs.crudMap[backend]; !ok {
 		http.Error(writer, fmt.Sprintf("no such backend: %s", backend), http.StatusBadRequest)
 		return
-	} else {
-		handler(c, writer, request)
 	}
+
+	handler(c, writer, request)
 }
 
 func (rs *restServer) handleEntity(writer http.ResponseWriter, request *http.Request, backend, entity string, handler EntityHandler) {

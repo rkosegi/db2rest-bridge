@@ -72,32 +72,35 @@ func (rs *restServer) CreateItem(w http.ResponseWriter, r *http.Request, backend
 			rs.l.Error("can't decode body", "backend", backend, "entity", entity, "error", err)
 			out.SendWithStatus(writer, err, http.StatusBadRequest)
 			return
+		}
+		if body, err = c.Create(r.Context(), entity, body); err != nil {
+			rs.l.Error("can't create item", "backend", backend, "entity", entity, "error", err)
+			out.SendWithStatus(writer, api.ErrorObject{
+				Message: err.Error(),
+			}, http.StatusInternalServerError)
 		} else {
-			if body, err = c.Create(r.Context(), entity, body); err != nil {
-				rs.l.Error("can't create item", "backend", backend, "entity", entity, "error", err)
-				out.SendWithStatus(writer, api.ErrorObject{
-					Message: err.Error(),
-				}, http.StatusInternalServerError)
-			} else {
-				out.SendWithStatus(writer, body, http.StatusCreated)
-			}
+			out.SendWithStatus(writer, body, http.StatusCreated)
 		}
 	})
 }
 
 func (rs *restServer) GetItemById(w http.ResponseWriter, r *http.Request, backend string, entity string, id string) {
 	rs.handleItem(w, r, backend, entity, id, func(c crud.Interface, entity, id string, writer http.ResponseWriter, _ *http.Request) {
-		if obj, err := c.Get(r.Context(), entity, id); err != nil {
+		var (
+			obj api.UntypedDto
+			err error
+		)
+		if obj, err = c.Get(r.Context(), entity, id); err != nil {
 			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 			return
+		}
+
+		if obj != nil {
+			out.SendWithStatus(writer, obj, http.StatusOK)
 		} else {
-			if obj != nil {
-				out.SendWithStatus(writer, obj, http.StatusOK)
-			} else {
-				out.SendWithStatus(writer, api.ErrorObject{
-					Message: fmt.Sprintf("entity of type '%s' with id '%s' was not found", entity, id),
-				}, http.StatusNotFound)
-			}
+			out.SendWithStatus(writer, api.ErrorObject{
+				Message: fmt.Sprintf("entity of type '%s' with id '%s' was not found", entity, id),
+			}, http.StatusNotFound)
 		}
 	})
 }
