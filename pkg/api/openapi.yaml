@@ -75,24 +75,30 @@ paths:
       tags:
         - entity
   /{backend}/_query/{name}:
-    parameters:
-      - $ref: "#/components/parameters/backend"
-      - name: name
-        description: Name of query within the configuration
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: arg
-        description: Additional arguments passed to query
-        in: query
-        schema:
-          type: array
-          items:
-            type: string
     get:
       summary: Execute named query and return the result set
       operationId: queryNamed
+      description: |
+        Run previously-crafted query on the server and return results.
+        Saved queries should not contain any paging statement as those are provided
+        based on `page-offset` and `page-size` parameter.
+      parameters:
+        - $ref: "#/components/parameters/backend"
+        - $ref: "#/components/parameters/page-offset"
+        - $ref: "#/components/parameters/page-size"
+        - name: name
+          description: Name of query within the configuration
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: arg
+          description: Additional arguments passed to query
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
       responses:
         '200':
           description: Query executed and data returned
@@ -117,21 +123,8 @@ paths:
       description: List entity items using provided criteria
       summary: List entity items
       parameters:
-        - name: page-offset
-          in: query
-          required: false
-          description: Page offset
-          schema:
-            type: integer
-            minimum: 0
-        - name: page-size
-          in: query
-          required: false
-          description: Page size
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
+        - $ref: "#/components/parameters/page-offset"
+        - $ref: "#/components/parameters/page-size"
         - name: order[]
           description: |
             List of order instructions in form of `key=direction`.
@@ -340,6 +333,24 @@ components:
         pattern: '[\w_-]+'
         minLength: 1
         maxLength: 63
+    page-offset:
+      name: page-offset
+      in: query
+      required: false
+      description: Page offset
+      schema:
+        type: integer
+        minimum: 0
+    page-size:
+      name: page-size
+      in: query
+      required: false
+      description: Page size
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+
   schemas:
     BulkUpdateMode:
       type: string
