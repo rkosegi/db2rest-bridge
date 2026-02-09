@@ -34,7 +34,7 @@ type GenericInterface[T any] interface {
 }
 
 type RawInterface interface {
-	Query(context.Context, string, []string) ([]api.UntypedDto, error)
+	Query(context.Context, string, query.Interface, []string) (*api.PagedResult, error)
 }
 
 type Opt[T any] func(*generic[T])

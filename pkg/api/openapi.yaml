@@ -105,9 +105,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UntypedDto"
+                $ref: "#/components/schemas/PagedResult"
         '404':
           description: Name of query is not recognized
           content:

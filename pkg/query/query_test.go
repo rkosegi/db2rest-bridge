@@ -202,19 +202,19 @@ func TestDecodeRequest(t *testing.T) {
 		qry Interface
 		err error
 	)
-	qry, err = FromParams(api.ListItemsParams{})
+	qry, err = FromParams(nil, nil, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, qry)
 	req, _ = http.NewRequest(http.MethodGet, "", nil)
 	q := req.URL.Query()
 	req.URL.RawQuery = q.Encode()
 	s := `{"not":{"simple":{"op":"=","name":"name","val":"John"}}}`
-	qry, err = FromParams(api.ListItemsParams{
-		PageOffset: lo.ToPtr(31),
-		PageSize:   lo.ToPtr(20),
-		Order:      lo.ToPtr([]string{"name=asc", "age=desc"}),
-		Filter:     &s,
-	})
+	qry, err = FromParams(
+		lo.ToPtr(31),
+		lo.ToPtr(20),
+		lo.ToPtr([]string{"name=asc", "age=desc"}),
+		&s,
+	)
 	assert.NoError(t, err)
 	assert.NotNil(t, qry)
 	assert.Equal(t, OpEq, qry.Filter().(*notExpr).expr.(*simpleExpr).op)

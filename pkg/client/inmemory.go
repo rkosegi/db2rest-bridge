@@ -77,6 +77,6 @@ func (i *imCrud[T]) BulkUpdate(_ context.Context, _ []*T, _ dba.BulkUpdateMode) 
 	panic("implement me")
 }
 
-func (i *imCrud[T]) Query(_ context.Context, _ string, _ []string) ([]dba.UntypedDto, error) {
+func (i *imCrud[T]) Query(_ context.Context, _ string, _ query.Interface, _ []string) (*dba.PagedResult, error) {
 	panic("implement me")
 }

@@ -52,7 +52,7 @@ func (rs *restServer) ListItems(w http.ResponseWriter, r *http.Request, backend 
 			qry query.Interface
 			res *crud.PagedResult
 		)
-		if qry, err = query.FromParams(params); err != nil {
+		if qry, err = query.FromParams(params.PageOffset, params.PageSize, params.Order, params.Filter); err != nil {
 			out.SendWithStatus(writer, err, http.StatusBadRequest)
 			return
 		}
@@ -191,7 +191,7 @@ func (rs *restServer) BulkUpdate(w http.ResponseWriter, r *http.Request, backend
 func (rs *restServer) QueryNamed(w http.ResponseWriter, r *http.Request, backend api.Backend, name string, params api.QueryNamedParams) {
 	rs.handleBackend(w, r, backend, func(c crud.Interface, writer http.ResponseWriter, request *http.Request) {
 		var (
-			res []api.UntypedDto
+			res *crud.PagedResult
 			err error
 		)
 		var args []interface{}
@@ -200,7 +200,13 @@ func (rs *restServer) QueryNamed(w http.ResponseWriter, r *http.Request, backend
 				args = append(args, arg)
 			}
 		}
-		if res, err = c.QueryNamed(request.Context(), name, args...); err != nil {
+		var qry query.Interface
+		if qry, err = query.FromParams(params.PageOffset, params.PageSize, nil, nil); err != nil {
+			out.SendWithStatus(writer, err, http.StatusBadRequest)
+			return
+		}
+
+		if res, err = c.QueryNamed(request.Context(), name, qry, args...); err != nil {
 			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 		} else {
 			out.SendWithStatus(writer, res, http.StatusOK)

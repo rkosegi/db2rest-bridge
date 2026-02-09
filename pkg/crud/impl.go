@@ -72,22 +72,6 @@ func newImpl(be *types.BackendConfig, opts ...Opt) Interface {
 	return i
 }
 
-func (be *impl) QueryNamed(ctx context.Context, name string, args ...interface{}) ([]api.UntypedDto, error) {
-	if !*be.config.Read {
-		return nil, errReadNotAllowed
-	}
-	var err error
-	res := make([]api.UntypedDto, 0)
-	qry, ok := be.config.Queries[name]
-	if !ok {
-		return nil, types.NewErrorWithStatus("no such query: "+name, http.StatusNotFound)
-	}
-	if res, err = be.fetchRows(ctx, be.logSQL(qry), args...); err != nil {
-		return nil, types.WrapError("failed to execute query "+name, err)
-	}
-	return res, nil
-}
-
 func (be *impl) Load(c *ttlcache.Cache[string, map[string]*sql.ColumnType], key string) *ttlcache.Item[string, map[string]*sql.ColumnType] {
 	be.l.Debug("loading entity metadata into cache", "entity", key)
 	qry := createSingleSelectQuery(key, be.config.IdColumn(key))
@@ -174,6 +158,45 @@ func (be *impl) ListItems(ctx context.Context, entity string, qe query.Interface
 		Data:       res,
 		TotalCount: cnt,
 		Offset:     qe.Paging().Offset(),
+	}, nil
+}
+
+func (be *impl) QueryNamed(ctx context.Context, name string, qry query.Interface, args ...interface{}) (*PagedResult, error) {
+	if !*be.config.Read {
+		return nil, errReadNotAllowed
+	}
+	if qry == nil {
+		qry = query.DefaultQuery
+	}
+	var err error
+	items := make([]api.UntypedDto, 0)
+	savedQry, ok := be.config.Queries[name]
+	if !ok {
+		return nil, types.NewErrorWithStatus("no such query: "+name, http.StatusNotFound)
+	}
+
+	countQry := fmt.Sprintf("SELECT COUNT(1) FROM (%s) AS wrapper", savedQry)
+	be.l.Debug("SQL", "query", countQry)
+	row := be.config.DB().QueryRowContext(ctx, countQry, args...)
+	var cnt int
+	if err = row.Scan(&cnt); err != nil {
+		return nil, types.WrapError("failed to determine resultset size", err)
+	}
+
+	var offset uint64
+	if qry.Paging() != nil {
+		savedQry += " LIMIT " + qry.Paging().String()
+		offset = qry.Paging().Offset()
+	}
+
+	be.l.Debug("SQL", "query", savedQry)
+	if items, err = be.fetchRows(ctx, savedQry, args...); err != nil {
+		return nil, types.WrapError("failed to execute query "+name, err)
+	}
+	return &PagedResult{
+		TotalCount: cnt,
+		Data:       items,
+		Offset:     offset,
 	}, nil
 }
 
@@ -277,7 +300,7 @@ func (be *impl) Update(ctx context.Context, entity, id string, body api.UntypedD
 func remapValue(v interface{}, ct *sql.ColumnType) interface{} {
 	switch v := v.(type) {
 	case string:
-		if ct.DatabaseTypeName() == "DATETIME" || ct.DatabaseTypeName() == "TIMESTAMP" {
+		if ct.DatabaseTypeName() == "DATETIME" || ct.DatabaseTypeName() == "TIMESTAMP" || ct.DatabaseTypeName() == "DATE" {
 			for _, layout := range dateTimeLayouts {
 				t, err := time.Parse(layout, v)
 				if err == nil {

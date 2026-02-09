@@ -24,23 +24,24 @@ import (
 )
 
 const (
-	OpAnd    = Op("AND")
-	OpOr     = Op("OR")
-	OpNot    = Op("NOT")
-	OpEq     = Op("=")
-	OpIsNull = Op("IS NULL")
-	OpGt     = Op(">")
-	OpLt     = Op("<")
-	OpNe     = Op("<>")
-	OpNe2    = Op("!=")
-	OpIn     = Op("IN")
+	OpAnd     = Op("AND")
+	OpOr      = Op("OR")
+	OpNot     = Op("NOT")
+	OpEq      = Op("=")
+	OpIsNull  = Op("IS NULL")
+	OpGt      = Op(">")
+	OpLt      = Op("<")
+	OpNe      = Op("<>")
+	OpNe2     = Op("!=")
+	OpIn      = Op("IN")
+	OpLike    = Op("LIKE")
+	OpNotLike = Op("NOT LIKE")
 )
 
 var (
-	DefaultPaging = Page(DefaultPageOffset, DefaultPageSize)
-	DefaultFilter = SimpleExpr("1", OpAnd, "1")
-	DefaultQuery  = &qryData{
-		filter: DefaultFilter,
+	DefaultPaging           = Page(DefaultPageOffset, DefaultPageSize)
+	DefaultFilter           = SimpleExpr("1", OpAnd, "1")
+	DefaultQuery  Interface = &qryData{
 		paging: DefaultPaging,
 	}
 )

@@ -23,6 +23,7 @@ import (
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
+	"github.com/samber/lo"
 )
 
 func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, int, error) {
@@ -160,19 +161,24 @@ func (g *generic[T]) BulkUpdate(ctx context.Context, objs []*T, mode api.BulkUpd
 	return ensureResponseCode(resp.HTTPResponse, http.StatusOK, resp.Body)
 }
 
-func (g *generic[T]) Query(ctx context.Context, name string, args []string) ([]api.UntypedDto, error) {
+func (g *generic[T]) Query(ctx context.Context, name string, qry query.Interface, args []string) (*api.PagedResult, error) {
 	var (
 		resp *api.QueryNamedResponse
 		err  error
 	)
+	if qry.Paging() == nil {
+		qry = query.DefaultQuery
+	}
 	if resp, err = g.c.QueryNamedWithResponse(ctx, g.be, name, &api.QueryNamedParams{
-		Arg: &args,
+		PageSize:   lo.ToPtr(qry.Paging().Size()),
+		PageOffset: lo.ToPtr(api.PageOffset(qry.Paging().Offset())),
+		Arg:        &args,
 	}); err != nil {
 		return nil, err
 	}
 	switch resp.HTTPResponse.StatusCode {
 	case http.StatusOK:
-		return *resp.JSON200, nil
+		return resp.JSON200, nil
 	case http.StatusNotFound:
 		return nil, errorFromResponseWithMsg(resp.HTTPResponse, resp.JSON404.Message)
 	default:

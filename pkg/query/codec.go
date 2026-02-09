@@ -62,23 +62,22 @@ func ToParams(params Interface) (*api.ListItemsParams, error) {
 	return ret, nil
 }
 
-func FromParams(params api.ListItemsParams) (Interface, error) {
+func FromParams(pPageOffset *api.PageOffset, pPageSize *api.PageSize, pOrders *[]string, pFilter *string) (Interface, error) {
 	var (
 		orders Orders
 		err    error
 		filter FilterExpression
 	)
-	filter = DefaultFilter
 	pageOffset := DefaultPageOffset
 	pageSize := DefaultPageSize
-	if params.PageSize != nil {
-		pageSize = *params.PageSize
+	if pPageSize != nil {
+		pageSize = *pPageSize
 	}
-	if params.PageOffset != nil {
-		pageOffset = *params.PageOffset
+	if pPageOffset != nil {
+		pageOffset = *pPageOffset
 	}
-	if params.Order != nil {
-		for _, orderStr := range *params.Order {
+	if pOrders != nil {
+		for _, orderStr := range *pOrders {
 			var ord order
 			if err = ord.UnmarshalText([]byte(orderStr)); err != nil {
 				return nil, err
@@ -86,8 +85,8 @@ func FromParams(params api.ListItemsParams) (Interface, error) {
 			orders = append(orders, &ord)
 		}
 	}
-	if params.Filter != nil {
-		if filter, err = DecodeFilter(*params.Filter); err != nil {
+	if pFilter != nil {
+		if filter, err = DecodeFilter(*pFilter); err != nil {
 			return nil, err
 		}
 	}

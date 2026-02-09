@@ -68,7 +68,7 @@ type Interface interface {
 	// if replace is set to true, then items are removed in backend prior to creating, if they exist.
 	MultiCreate(ctx context.Context, entity string, replace bool, objs []api.UntypedDto) error
 	// QueryNamed executes named query that was provided in configuration.
-	QueryNamed(ctx context.Context, name string, args ...interface{}) ([]api.UntypedDto, error)
+	QueryNamed(ctx context.Context, name string, qry query.Interface, args ...interface{}) (*PagedResult, error)
 }
 
 type NameToCrudMap map[string]Interface

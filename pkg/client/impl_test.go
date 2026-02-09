@@ -69,9 +69,7 @@ func TestOpList(t *testing.T) {
 	assert.Equal(t, "Alice", res[0].Name)
 	assert.Equal(t, 42, res[0].Age)
 
-	qry, err = query.FromParams(api.ListItemsParams{
-		PageOffset: lo.ToPtr(10),
-	})
+	qry, err = query.FromParams(lo.ToPtr(10), nil, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, qry)
 	res, _, err = cl.List(context.Background(), query.DefaultQuery)
