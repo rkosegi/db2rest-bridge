@@ -90,8 +90,8 @@ func (be *impl) QueryNamed(ctx context.Context, name string, args ...interface{}
 
 func (be *impl) Load(c *ttlcache.Cache[string, map[string]*sql.ColumnType], key string) *ttlcache.Item[string, map[string]*sql.ColumnType] {
 	be.l.Debug("loading entity metadata into cache", "entity", key)
-	qry := be.logSQL(createSingleSelectQuery(key, be.config.IdColumn(key)))
-
+	qry := createSingleSelectQuery(key, be.config.IdColumn(key))
+	be.l.Debug("SQL", "query", qry)
 	rows, err := be.config.DB().Query(qry, "0")
 	if err != nil {
 		return nil
@@ -110,13 +110,9 @@ func (be *impl) Load(c *ttlcache.Cache[string, map[string]*sql.ColumnType], key 
 	}), ttlcache.DefaultTTL)
 }
 
-func (be *impl) logSQL(sql string) string {
-	be.l.Debug("SQL", "query", sql)
-	return sql
-}
-
 func (be *impl) fetchOneItem(ctx context.Context, entity, id string, retrieve bool) (res api.UntypedDto, err error) {
-	qry := be.logSQL(createSingleSelectQuery(entity, be.config.IdColumn(entity)))
+	qry := createSingleSelectQuery(entity, be.config.IdColumn(entity))
+	be.l.Debug("SQL", "query", qry)
 	rows, err := be.config.DB().QueryContext(ctx, qry, id)
 	if err != nil {
 		return nil, types.WrapError("failed to fetch single row", err)
@@ -155,13 +151,20 @@ func (be *impl) ListItems(ctx context.Context, entity string, qe query.Interface
 	if qe == nil {
 		qe = query.DefaultQuery
 	}
-	qry = be.logSQL(fmt.Sprintf("SELECT COUNT(1) FROM `%s` WHERE %s", entity, qe.Filter().String()))
+	whereExpr := ""
+	flt := qe.Filter()
+	if flt != nil {
+		whereExpr = fmt.Sprintf(" WHERE %v", flt)
+	}
+	qry = fmt.Sprintf("SELECT COUNT(1) FROM `%s`%s", entity, whereExpr)
+	be.l.Debug("SQL", "query", qry)
 	row := be.config.DB().QueryRowContext(ctx, qry)
 	if err = row.Scan(&cnt); err != nil {
 		return nil, types.WrapError("failed to determine resultset size", err)
 	}
 
-	qry = be.logSQL(fmt.Sprintf("SELECT * FROM `%s` %s", entity, qe.String()))
+	qry = fmt.Sprintf("SELECT * FROM `%s`%s", entity, qe.String())
+	be.l.Debug("SQL", "query", qry)
 
 	var res []api.UntypedDto
 	if res, err = be.fetchRows(ctx, qry); err != nil {
@@ -210,7 +213,9 @@ func (be *impl) ListEntities(ctx context.Context) ([]string, error) {
 		err error
 		res []string
 	)
-	rows, err := be.config.DB().QueryContext(ctx, be.logSQL("SHOW TABLES"))
+	qry := "SHOW TABLES"
+	be.l.Debug("SQL", "query", qry)
+	rows, err := be.config.DB().QueryContext(ctx, qry)
 	if err != nil {
 		return nil, types.WrapError("failed to list entity tables", err)
 	}
@@ -246,7 +251,8 @@ func (be *impl) Delete(ctx context.Context, entity, id string) (err error) {
 	if !*be.config.Delete {
 		return errDeleteNotAllowed
 	}
-	qry := be.logSQL(createSingleDeleteQuery(entity, be.config.IdColumn(entity)))
+	qry := createSingleDeleteQuery(entity, be.config.IdColumn(entity))
+	be.l.Debug("SQL", "query", qry)
 	_, err = be.config.DB().ExecContext(ctx, qry, id)
 	return err
 }
@@ -261,7 +267,8 @@ func (be *impl) Update(ctx context.Context, entity, id string, body api.UntypedD
 	}
 	qry, values := createUpdateQuery(entity, be.config.IdColumn(entity), body)
 	values = append(values, id)
-	if _, err := be.config.DB().ExecContext(ctx, be.logSQL(qry), values...); err != nil {
+	be.l.Debug("SQL", "query", qry)
+	if _, err := be.config.DB().ExecContext(ctx, qry, values...); err != nil {
 		return nil, types.WrapError("failed to update entity", err)
 	}
 	return be.fetchOneItem(ctx, entity, id, true)
@@ -314,7 +321,8 @@ func (be *impl) Create(ctx context.Context, entity string, body api.UntypedDto) 
 		body = remapBody(md, body)
 	}
 	qry, values := createInsertQuery(entity, body)
-	if res, err = be.config.DB().ExecContext(ctx, be.logSQL(qry), values...); err != nil {
+	be.l.Debug("SQL", "query", qry)
+	if res, err = be.config.DB().ExecContext(ctx, qry, values...); err != nil {
 		return nil, err
 	}
 	// TODO: this could be configurable. There are scenarios where you don't use auto increment
@@ -334,8 +342,9 @@ func (be *impl) MultiDelete(ctx context.Context, entity string, ids []interface{
 	case ic == 1:
 		return be.Delete(ctx, entity, fmt.Sprintf("%v", ids[0]))
 	default:
-		_, err := be.config.DB().ExecContext(ctx, be.logSQL(
-			createMultiDeleteQuery(entity, be.config.IdColumn(entity), ic)), ids...)
+		qry := createMultiDeleteQuery(entity, be.config.IdColumn(entity), ic)
+		be.l.Debug("SQL", "query", qry)
+		_, err := be.config.DB().ExecContext(ctx, qry, ids...)
 		return err
 	}
 }
@@ -362,7 +371,8 @@ func (be *impl) MultiUpdate(ctx context.Context, entity string, objs []api.Untyp
 		}
 		qry, values := createUpdateQuery(entity, idCol, obj)
 		values = append(values, id)
-		if _, err = tx.ExecContext(ctx, be.logSQL(qry), values...); err != nil {
+		be.l.Debug("SQL", "query", qry)
+		if _, err = tx.ExecContext(ctx, qry, values...); err != nil {
 			be.l.ErrorContext(ctx, "query execution failed, rolling back", "err", err)
 			return errors.Join(err, tx.Rollback())
 		}
@@ -398,7 +408,8 @@ func (be *impl) MultiCreate(ctx context.Context, entity string, replace bool, ob
 			qry, values = createInsertQuery(entity, obj)
 		}
 
-		if _, err = tx.ExecContext(ctx, be.logSQL(qry), values...); err != nil {
+		be.l.Debug("SQL", "query", qry)
+		if _, err = tx.ExecContext(ctx, qry, values...); err != nil {
 			be.l.ErrorContext(ctx, "query execution failed, rolling back", "err", err)
 			return errors.Join(types.WrapErrorWithStatus(
 				"query failed: "+qry, err, http.StatusInternalServerError),
