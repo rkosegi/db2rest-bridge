@@ -18,11 +18,13 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"slices"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
+	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
 	"github.com/samber/lo"
 )
@@ -60,5 +62,25 @@ func errorFromResponseWithMsg(r *http.Response, msg string) error {
 	return &types.ErrorWithStatus{
 		Status: r.StatusCode,
 		Msg:    msg,
+	}
+}
+
+func LoadAll[T any](ctx context.Context, c GenericInterface[T], fe query.FilterExpression, orders ...query.Order) ([]*T, error) {
+	loaded := 0
+	var results []*T
+	for {
+		qb := query.NewBuilder().Filter(fe).Paging(loaded, 20)
+		for _, order := range orders {
+			qb.OrderBy(order.Name(), order.Asc())
+		}
+		rows, total, err := c.List(ctx, qb.Build())
+		if err != nil {
+			return nil, err
+		}
+		loaded += len(rows)
+		results = append(results, rows...)
+		if loaded == total {
+			return results, nil
+		}
 	}
 }

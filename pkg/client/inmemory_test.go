@@ -78,6 +78,12 @@ func TestInMemoryCrud(t *testing.T) {
 		assert.Len(t, items, 3)
 	})
 
+	t.Run("get all items using LoadAll", func(t *testing.T) {
+		items, err = LoadAll(t.Context(), ic, nil)
+		assert.NoError(t, err)
+		assert.Len(t, items, 3)
+	})
+
 	t.Run("create/get/remove item", func(t *testing.T) {
 		items, total, err = ic.List(t.Context(), query.NewBuilder().Build())
 
