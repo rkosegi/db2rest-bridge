@@ -122,7 +122,7 @@ func (be *impl) fetchOneItem(ctx context.Context, entity, id string, retrieve bo
 	return res, nil
 }
 
-func (be *impl) ListItems(ctx context.Context, entity string, qe query.Interface) (*PagedResult, error) {
+func (be *impl) ListItems(ctx context.Context, entity string, qe query.Interface) (*api.PagedResult, error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
@@ -146,22 +146,22 @@ func (be *impl) ListItems(ctx context.Context, entity string, qe query.Interface
 	if err = row.Scan(&cnt); err != nil {
 		return nil, types.WrapError("failed to determine resultset size", err)
 	}
-
-	qry = fmt.Sprintf("SELECT * FROM `%s`%s", entity, qe.String())
-	be.l.Debug("SQL", "query", qry)
-
-	var res []api.UntypedDto
-	if res, err = be.fetchRows(ctx, qry); err != nil {
-		return nil, types.WrapError("failed to fetch rows", err)
+	res := []api.UntypedDto{}
+	if cnt > 0 {
+		qry = fmt.Sprintf("SELECT * FROM `%s`%s", entity, qe.String())
+		be.l.Debug("SQL", "query", qry)
+		if res, err = be.fetchRows(ctx, qry); err != nil {
+			return nil, types.WrapError("failed to fetch rows", err)
+		}
 	}
-	return &PagedResult{
-		Data:       res,
-		TotalCount: cnt,
-		Offset:     qe.Paging().Offset(),
+	return &api.PagedResult{
+		Data:       &res,
+		TotalCount: &cnt,
+		Offset:     lo.ToPtr(float32(qe.Paging().Offset())),
 	}, nil
 }
 
-func (be *impl) QueryNamed(ctx context.Context, name string, qry query.Interface, args ...interface{}) (*PagedResult, error) {
+func (be *impl) QueryNamed(ctx context.Context, name string, qry query.Interface, args ...interface{}) (*api.PagedResult, error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
@@ -193,10 +193,10 @@ func (be *impl) QueryNamed(ctx context.Context, name string, qry query.Interface
 	if items, err = be.fetchRows(ctx, savedQry, args...); err != nil {
 		return nil, types.WrapError("failed to execute query "+name, err)
 	}
-	return &PagedResult{
-		TotalCount: cnt,
-		Data:       items,
-		Offset:     offset,
+	return &api.PagedResult{
+		TotalCount: &cnt,
+		Data:       &items,
+		Offset:     lo.ToPtr(float32(offset)),
 	}, nil
 }
 

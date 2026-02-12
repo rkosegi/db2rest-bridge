@@ -38,18 +38,12 @@ var (
 	errDeleteNotAllowed = types.NewErrorWithStatus("delete"+notAllowedSuffix, http.StatusMethodNotAllowed)
 )
 
-type PagedResult struct {
-	Data       []api.UntypedDto `json:"data"`
-	TotalCount int              `json:"total_count"`
-	Offset     uint64           `json:"offset"`
-}
-
 // Interface is API to perform CRUD operation against backend
 type Interface interface {
 	// ListEntities lists all entity types in backend (such as tables)
 	ListEntities(ctx context.Context) ([]string, error)
 	// ListItems lists items based on provided query
-	ListItems(ctx context.Context, entity string, qry query.Interface) (*PagedResult, error)
+	ListItems(ctx context.Context, entity string, qry query.Interface) (*api.PagedResult, error)
 	// Exists checks for existence of item based on ID
 	Exists(ctx context.Context, entity, id string) (bool, error)
 	// Get gets item based on ID
@@ -68,7 +62,7 @@ type Interface interface {
 	// if replace is set to true, then items are removed in backend prior to creating, if they exist.
 	MultiCreate(ctx context.Context, entity string, replace bool, objs []api.UntypedDto) error
 	// QueryNamed executes named query that was provided in configuration.
-	QueryNamed(ctx context.Context, name string, qry query.Interface, args ...interface{}) (*PagedResult, error)
+	QueryNamed(ctx context.Context, name string, qry query.Interface, args ...interface{}) (*api.PagedResult, error)
 }
 
 type NameToCrudMap map[string]Interface
