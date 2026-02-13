@@ -81,6 +81,25 @@ func TestParseFilter(t *testing.T) {
 		assert.Len(t, fe.(*inExpr).val, 2)
 		assert.Equal(t, "x", fe.(*inExpr).val[0])
 	})
+
+	t.Run("IS NOT NULL", func(t *testing.T) {
+		fe, err = DecodeFilter(`{"un": { "name": "url", "op": "IS NOT NULL"}}`)
+		assert.NoError(t, err)
+		assert.NotNil(t, fe)
+		assert.Equal(t, OpIsNotNull, fe.(*unExpr).op)
+		assert.Equal(t, "url", fe.(*unExpr).name)
+		assert.Equal(t, "url IS NOT NULL", fe.String())
+	})
+
+	t.Run("BETWEEN", func(t *testing.T) {
+		fe, err = DecodeFilter(`{"between":{"left":50,"name":"age","right":60}}`)
+		assert.NoError(t, err)
+		assert.NotNil(t, fe)
+		assert.Equal(t, float64(50), fe.(BetweenExpression).Left())
+		assert.Equal(t, float64(60), fe.(BetweenExpression).Right())
+		assert.Equal(t, "age", fe.(BetweenExpression).Name())
+		assert.Equal(t, "age BETWEEN 50 AND 60", fe.String())
+	})
 }
 
 func TestOrdersString(t *testing.T) {
@@ -177,6 +196,24 @@ func TestDecodeEncode(t *testing.T) {
 		assert.Equal(t, `{"junction":{"op":"AND","sub":[{"simple":{"name":"age","op":"\u003e","val":25}},`+
 			`{"simple":{"name":"age","op":"\u003c","val":150}}]}}`,
 			strings.TrimSpace(string(data)))
+	})
+
+	t.Run("unary expression IS NULL", func(t *testing.T) {
+		data, err = EncodeFilter(
+			UnaryExpr("url", OpIsNull),
+		)
+		assert.NoError(t, err)
+		assert.NotNil(t, data)
+		assert.Equal(t, `{"un":{"name":"url","op":"IS NULL"}}`, strings.TrimSpace(string(data)))
+	})
+
+	t.Run("between expression", func(t *testing.T) {
+		data, err = EncodeFilter(
+			BetweenExpr("age", 50, 60),
+		)
+		assert.NoError(t, err)
+		assert.NotNil(t, data)
+		assert.Equal(t, `{"between":{"left":50,"name":"age","right":60}}`, strings.TrimSpace(string(data)))
 	})
 }
 

@@ -146,7 +146,17 @@ func decodeExprFromMap(m map[string]interface{}) FilterExpression {
 	if sub, ok = hasSubMap("in", m); ok {
 		return inExprFromMap(sub)
 	}
+	if sub, ok = hasSubMap("un", m); ok {
+		return unExprFromMap(sub)
+	}
+	if sub, ok = hasSubMap("between", m); ok {
+		return betweenExprFromMap(sub)
+	}
 	return nil
+}
+
+func betweenExprFromMap(m map[string]interface{}) FilterExpression {
+	return BetweenExpr(fmt.Sprintf("%v", m["name"]), m["left"], m["right"])
 }
 
 func hasSubMap(key string, m map[string]interface{}) (inner map[string]interface{}, ok bool) {
@@ -175,6 +185,10 @@ func simpleExprFromMap(m map[string]interface{}) FilterExpression {
 
 func inExprFromMap(m map[string]interface{}) FilterExpression {
 	return In(fmt.Sprintf("%v", m["name"]), m["val"].([]interface{}))
+}
+
+func unExprFromMap(m map[string]interface{}) FilterExpression {
+	return UnaryExpr(fmt.Sprintf("%v", m["name"]), Op(m["op"].(string)))
 }
 
 func notExprFromMap(m map[string]interface{}) FilterExpression {

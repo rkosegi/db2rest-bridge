@@ -65,6 +65,18 @@ type NotExpression interface {
 	Sub() FilterExpression
 }
 
+// UnaryExpression <prop> IS NULL / <prop> IS NOT NULL
+type UnaryExpression interface {
+	Name() string
+	Op() Op
+}
+
+type BetweenExpression interface {
+	Name() string
+	Left() interface{}
+	Right() interface{}
+}
+
 type SimpleExpression interface {
 	Name() string
 	Op() Op

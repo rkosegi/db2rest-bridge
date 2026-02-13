@@ -160,3 +160,71 @@ func In(name string, vals []interface{}) FilterExpression {
 		val:  vals,
 	}
 }
+
+type unExpr struct {
+	name string
+	op   Op
+}
+
+func (u unExpr) Name() string {
+	return u.name
+}
+
+func (u unExpr) Op() Op {
+	return u.op
+}
+
+func (u unExpr) String() string {
+	return fmt.Sprintf("%v %s", u.name, u.op)
+}
+
+func (u unExpr) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"un": map[string]interface{}{
+			"name": u.Name(),
+			"op":   u.Op(),
+		},
+	})
+}
+
+func UnaryExpr(name string, op Op) FilterExpression {
+	return &unExpr{
+		name: name,
+		op:   op,
+	}
+}
+
+type betweenExpr struct {
+	name        string
+	op          Op
+	left, right interface{}
+}
+
+func (b betweenExpr) Name() string {
+	return b.name
+}
+
+func (b betweenExpr) Left() interface{} {
+	return b.left
+}
+
+func (b betweenExpr) Right() interface{} {
+	return b.right
+}
+
+func (b betweenExpr) String() string {
+	return fmt.Sprintf("%v BETWEEN %v AND %v", b.name, wrapStr(b.left, "'"), wrapStr(b.right, "'"))
+}
+
+func (b betweenExpr) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"between": map[string]interface{}{
+			"name":  b.Name(),
+			"left":  b.Left(),
+			"right": b.Right(),
+		},
+	})
+}
+func BetweenExpr(name string, left interface{}, right interface{}) FilterExpression {
+	return &betweenExpr{name: name, left: left, right: right}
+}
