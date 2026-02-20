@@ -179,10 +179,10 @@ func (u unExpr) String() string {
 }
 
 func (u unExpr) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"un": map[string]interface{}{
-			"name": u.Name(),
-			"op":   u.Op(),
+	return json.Marshal(FilterExpressionWrapper{
+		Un: &FilterUnExpression{
+			Name: u.Name(),
+			Op:   string(u.Op()),
 		},
 	})
 }
@@ -196,7 +196,6 @@ func UnaryExpr(name string, op Op) FilterExpression {
 
 type betweenExpr struct {
 	name        string
-	op          Op
 	left, right interface{}
 }
 
@@ -217,14 +216,102 @@ func (b betweenExpr) String() string {
 }
 
 func (b betweenExpr) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"between": map[string]interface{}{
-			"name":  b.Name(),
-			"left":  b.Left(),
-			"right": b.Right(),
+	return json.Marshal(FilterExpressionWrapper{
+		Between: &FilterBetweenExpression{
+			Left:  b.Left(),
+			Name:  b.Name(),
+			Right: b.Right(),
 		},
 	})
 }
 func BetweenExpr(name string, left interface{}, right interface{}) FilterExpression {
 	return &betweenExpr{name: name, left: left, right: right}
+}
+
+type FilterBetweenExpression struct {
+	Left  interface{} `json:"left"`
+	Name  string      `json:"name"`
+	Right interface{} `json:"right"`
+}
+
+type FilterExpressionWrapper struct {
+	Between  *FilterBetweenExpression  `json:"between,omitempty"`
+	In       *FilterInExpression       `json:"in,omitempty"`
+	Junction *FilterJunctionExpression `json:"junction,omitempty"`
+	Not      *FilterNotExpression      `json:"not,omitempty"`
+	Simple   *FilterSimpleExpression   `json:"simple,omitempty"`
+	Un       *FilterUnExpression       `json:"un,omitempty"`
+}
+
+type FilterInExpression struct {
+	Name string        `json:"name"`
+	Val  []interface{} `json:"val"`
+}
+
+type FilterJunctionExpression struct {
+	Op  string                    `json:"op"`
+	Sub []FilterExpressionWrapper `json:"sub"`
+}
+
+type FilterNotExpression struct {
+	Sub FilterExpressionWrapper `json:"sub"`
+}
+
+type FilterSimpleExpression struct {
+	Name string      `json:"name"`
+	Op   string      `json:"op"`
+	Val  interface{} `json:"val"`
+}
+
+type FilterUnExpression struct {
+	Name string `json:"name"`
+	Op   string `json:"op"`
+}
+
+func (e *FilterSimpleExpression) AsFilterExpression() FilterExpression {
+	return SimpleExpr(e.Name, Op(e.Op), e.Val)
+}
+
+func (e *FilterJunctionExpression) AsFilterExpression() FilterExpression {
+	return Junction(Op(e.Op), lo.Map(e.Sub, func(item FilterExpressionWrapper, _ int) FilterExpression {
+		return item.AsFilterExpression()
+	})...)
+}
+
+func (e *FilterNotExpression) AsFilterExpression() FilterExpression {
+	return Not(e.Sub.AsFilterExpression())
+}
+
+func (e *FilterInExpression) AsFilterExpression() FilterExpression {
+	return In(e.Name, e.Val)
+}
+
+func (e *FilterBetweenExpression) AsFilterExpression() FilterExpression {
+	return BetweenExpr(e.Name, e.Left, e.Right)
+}
+
+func (e *FilterUnExpression) AsFilterExpression() FilterExpression {
+	return UnaryExpr(e.Name, Op(e.Op))
+}
+
+func (few *FilterExpressionWrapper) AsFilterExpression() FilterExpression {
+	if few.Simple != nil {
+		return few.Simple.AsFilterExpression()
+	}
+	if few.Junction != nil {
+		return few.Junction.AsFilterExpression()
+	}
+	if few.Not != nil {
+		return few.Not.AsFilterExpression()
+	}
+	if few.In != nil {
+		return few.In.AsFilterExpression()
+	}
+	if few.Between != nil {
+		return few.Between.AsFilterExpression()
+	}
+	if few.Un != nil {
+		return few.Un.AsFilterExpression()
+	}
+	return nil
 }
