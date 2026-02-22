@@ -66,10 +66,14 @@ func errorFromResponseWithMsg(r *http.Response, msg string) error {
 }
 
 func LoadAll[T any](ctx context.Context, c GenericInterface[T], fe query.FilterExpression, orders ...query.Order) ([]*T, error) {
+	return LoadAllInBatch[T](ctx, c, fe, 20, orders...)
+}
+
+func LoadAllInBatch[T any](ctx context.Context, c GenericInterface[T], fe query.FilterExpression, batchSize int, orders ...query.Order) ([]*T, error) {
 	loaded := 0
 	var results []*T
 	for {
-		qb := query.NewBuilder().Filter(fe).Paging(loaded, 20)
+		qb := query.NewBuilder().Filter(fe).Paging(loaded, batchSize)
 		for _, order := range orders {
 			qb.OrderBy(order.Name(), order.Asc())
 		}
