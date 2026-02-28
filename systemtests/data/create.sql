@@ -12,10 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-CREATE TABLE IF NOT EXISTS employee (
+CREATE TABLE employee (
     id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT ,
     name VARCHAR(200) NOT NULL ,
     salary INT UNSIGNED NOT NULL ,
     department VARCHAR(200) NOT NULL ,
     PRIMARY KEY (`id`)
-) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+;
+
+CREATE TABLE employee_property (
+    id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT ,
+    employee_id INT(10) UNSIGNED NOT NULL ,
+    name VARCHAR(200) NOT NULL ,
+    val VARCHAR(200) NOT NULL ,
+    PRIMARY KEY (`id`) ,
+    CONSTRAINT `emp_prop_emp_fk` FOREIGN KEY (`employee_id`) REFERENCES `employee` (`id`)
+) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+;

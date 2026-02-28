@@ -41,6 +41,15 @@ import (
 )
 
 var (
+	mysqlError2status = map[uint16]int{
+		// attempt to create record with a key that is already taken
+		1062: http.StatusConflict,
+		// Field doesn't have a default value
+		1364: http.StatusBadRequest,
+		// foreign key constraints
+		1451: http.StatusConflict,
+		1452: http.StatusConflict,
+	}
 	httpDuration = promauto.NewSummaryVec(prometheus.SummaryOpts{
 		Namespace: "db2rest",
 		Name:      "http_duration_seconds",
@@ -61,7 +70,12 @@ var (
 		WithErrorMapper(func(w http.ResponseWriter, err error) bool {
 			var me *mysql.MySQLError
 			if errors.As(err, &me) {
-				w.WriteHeader(http.StatusInternalServerError)
+				status := http.StatusInternalServerError
+				// map mysql error code to http status code
+				if x, ok := mysqlError2status[me.Number]; ok {
+					status = x
+				}
+				w.WriteHeader(status)
 				_, _ = w.Write([]byte(me.Message))
 				return true
 			}
