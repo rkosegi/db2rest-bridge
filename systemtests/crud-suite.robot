@@ -47,8 +47,9 @@ Setup
     ...                     cwd=.    alias=Server   shell=True
     ...                     stdout=.cache/systemtests/app.log  stderr=.cache/systemtests/app.err
     MySQL.Write Config      ${MYSQL_CNF_FILE}     ${MYSQL_HOST}   ${MYSQL_DDL_USER}     ${MYSQL_DDL_PASS}   ${MYSQL_DB}
+    MySQL.Run client        ${MYSQL_CNF_FILE}     ${DDL_DROP}     drop
     MySQL.Run client        ${MYSQL_CNF_FILE}     ${DDL_CREATE}     create
-    Builtin.Sleep           5s
+    Builtin.Sleep           1s
 
 Teardown
     [Documentation]         Tear down this suite
@@ -81,6 +82,33 @@ Create/Update/Delete single item
     Builtin.Should be equal      ${item['name']}   Bob
     Builtin.Should be equal      ${item['department']}   Management
     Db2rest.Delete Item By Id  ${MYSQL_DB}     employee    ${itemId}
+
+Create same item twice should fail
+    [Documentation]         Attempt to create item with same primary key should fail for second call
+    &{emp}                  Builtin.Create Dictionary   name=Charlie  id=100      salary=500  department=HR
+    ${item}                 Db2rest.Create Item And Expect Status     ${MYSQL_DB}     employee    ${emp}    201
+    ${item}                 Db2rest.Create Item And Expect Status     ${MYSQL_DB}     employee    ${emp}    409
+
+Create item with missing properties should fail
+    [Documentation]         Attempt to create item mandatory (non-null) property should fail
+    &{emp}                  Builtin.Create Dictionary   name=Hugo
+    ${item}                 Db2rest.Create Item And Expect Status     ${MYSQL_DB}     employee    ${emp}    400
+
+Create item with invalid foreign key ref should fail
+    [Documentation]         Attempt to create item with invalid reference to other table should fail
+    &{emp}                  Builtin.Create Dictionary   employee_id=999    name=prop1  val=XYZ
+    ${item}                 Db2rest.Create Item And Expect Status     ${MYSQL_DB}     employee_property    ${emp}    409
+
+
+Delete item with existing foreign key reference should fail
+    [Documentation]         Attempt to delete item with incoming reference from other table should fail
+    &{emp}                  Builtin.Create Dictionary   name=Charlie  id=200      salary=500  department=HR
+    ${item}                 Db2rest.Create Item And Expect Status     ${MYSQL_DB}     employee    ${emp}    201
+    &{prop}                 Builtin.Create Dictionary   id=500    employee_id=200    name=prop1  val=XYZ
+    ${item}                 Db2rest.Create Item And Expect Status     ${MYSQL_DB}     employee_property    ${prop}    201
+    ${result}               Db2rest.Delete Item And Expect Status  ${MYSQL_DB}     employee    200    409
+    ${result}               Db2rest.Delete Item By Id  ${MYSQL_DB}     employee_property    500
+    ${result}               Db2rest.Delete Item By Id  ${MYSQL_DB}     employee    200
 
 Bulk Create/Update/Delete
     [Documentation]         Mutate multiple items at once using bulk operation API

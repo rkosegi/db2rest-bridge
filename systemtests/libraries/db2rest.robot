@@ -56,10 +56,16 @@ Get Server Version
 Create Item
     [Documentation]     Create single item in backend
     [Arguments]         ${backend}     ${entity}   ${body}
+    ${response}         Create Item And Expect Status    ${backend}    ${entity}   ${body}    201
+    RETURN              ${response.json()}
+
+Create Item And Expect Status
+    [Documentation]     Create single item in backend
+    [Arguments]         ${backend}     ${entity}   ${body}    ${status}
     ${uri}              String.Format String    /{}/{}  ${backend}  ${entity}
     ${response}         REST Post       ${uri}  ${body}
-    RequestsLibrary.Status Should Be    201    ${response}
-    RETURN              ${response.json()}
+    RequestsLibrary.Status Should Be    ${status}    ${response}
+    RETURN              ${response}
 
 Bulk Operation
     [Documentation]     Create/Update/Delete multiple items at once
@@ -101,9 +107,15 @@ Update Item By Id
 Delete Item By Id
     [Documentation]     Delete item by ID
     [Arguments]         ${backend}    ${entity}    ${id}
+    ${response}         Delete Item And Expect Status    ${backend}  ${entity}    ${id}    204
+    RETURN              ${response}
+
+Delete Item And Expect Status
+    [Documentation]     Delete item by ID and expect status
+    [Arguments]         ${backend}    ${entity}    ${id}    ${status}
     ${uri}              String.Format String    /{}/{}/{}    ${backend}  ${entity}    ${id}
     ${response}         REST Delete    ${uri}
-    RequestsLibrary.Status Should Be    204    ${response}
+    RequestsLibrary.Status Should Be    ${status}    ${response}
     RETURN              ${response}
 
 REST Get
@@ -115,7 +127,7 @@ REST Get
 REST Post
     [Documentation]     Make a POST call and return response as a dictionary
     [Arguments]         ${uri}  ${body}
-    ${result}           RequestsLibrary.Post On Session    alias=client    url=${uri}  json=${body}
+    ${result}           RequestsLibrary.Post On Session    alias=client    url=${uri}  json=${body}    expected_status=anything
     RETURN              ${result}
 
 REST Put
@@ -127,5 +139,5 @@ REST Put
 REST Delete
     [Documentation]     Make a DELETE call and return response as a dictionary
     [Arguments]         ${uri}
-    ${result}           RequestsLibrary.Delete On Session    alias=client    url=${uri}
+    ${result}           RequestsLibrary.Delete On Session    alias=client    url=${uri}    expected_status=anything
     RETURN              ${result}
