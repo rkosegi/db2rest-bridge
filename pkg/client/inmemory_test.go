@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
-	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -173,8 +172,8 @@ func TestInMemoryCrud(t *testing.T) {
 
 func TestApplyPaging(t *testing.T) {
 	var out []*int
-	arr := []*int{lo.ToPtr(0), lo.ToPtr(1), lo.ToPtr(2), lo.ToPtr(3), lo.ToPtr(4), lo.ToPtr(5),
-		lo.ToPtr(6), lo.ToPtr(7), lo.ToPtr(8), lo.ToPtr(9), lo.ToPtr(10), lo.ToPtr(1)}
+	arr := []*int{new(0), new(1), new(2), new(3), new(4), new(5),
+		new(6), new(7), new(8), new(9), new(10), new(1)}
 
 	out = ApplyPaging[int](arr, query.Page(5, 3))
 	assert.Len(t, out, 3)

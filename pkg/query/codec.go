@@ -47,17 +47,17 @@ func ToParams(params Interface) (*api.ListItemsParams, error) {
 		if data, err = json.Marshal(fe); err != nil {
 			return nil, err
 		}
-		ret.Filter = lo.ToPtr(string(data))
+		ret.Filter = new(string(data))
 	}
 	if len(params.Orders()) > 0 {
-		ret.Order = lo.ToPtr(lo.Map(params.Orders(), func(ord Order, _ int) string {
+		ret.Order = new(lo.Map(params.Orders(), func(ord Order, _ int) string {
 			r, _ := ord.(*order).MarshalText()
 			return string(r)
 		}))
 	}
 	if paging := params.Paging(); paging != nil {
-		ret.PageOffset = lo.ToPtr(int(paging.Offset()))
-		ret.PageSize = lo.ToPtr(paging.Size())
+		ret.PageOffset = new(int(paging.Offset()))
+		ret.PageSize = new(paging.Size())
 	}
 	return ret, nil
 }

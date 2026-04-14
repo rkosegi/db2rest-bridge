@@ -68,8 +68,7 @@ var (
 
 	out = output.NewBuilder().
 		WithErrorMapper(func(w http.ResponseWriter, err error) bool {
-			var me *mysql.MySQLError
-			if errors.As(err, &me) {
+			if me, ok := errors.AsType[*mysql.MySQLError](err); ok {
 				status := http.StatusInternalServerError
 				// map mysql error code to http status code
 				if x, ok := mysqlError2status[me.Number]; ok {
@@ -79,8 +78,7 @@ var (
 				_, _ = w.Write([]byte(me.Message))
 				return true
 			}
-			var be *types.ErrorWithStatus
-			if errors.As(err, &be) {
+			if be, ok := errors.AsType[*types.ErrorWithStatus](err); ok {
 				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 				if be.Status != 0 {
 					w.WriteHeader(be.Status)
