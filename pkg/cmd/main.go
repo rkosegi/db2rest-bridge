@@ -44,6 +44,9 @@ func main() {
 		panic(err)
 	}
 	srv := server.New(cfg)
+	defer func(srv server.Interface) {
+		_ = srv.Close()
+	}(srv)
 	if err = srv.Run(context.Background()); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		panic(err)
 	}
