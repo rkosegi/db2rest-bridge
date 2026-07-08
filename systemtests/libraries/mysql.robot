@@ -37,7 +37,7 @@ Write Config
 Run client
     [Documentation]         Run a DDL file against database
     [Arguments]             ${config_file}      ${ddl_file}     ${alias}
-    ${cmd} =                Builtin.Catenate    mysql   --defaults-file=${config_file}  --verbose      --execute="SOURCE ${ddl_file};"
+    ${cmd} =                Builtin.Catenate    mysql   --defaults-file=${config_file}  --verbose      --execute="SOURCE ${ddl_file};"  --ssl=false
     Builtin.Log             About to invoke ${cmd}
     Process.Run Process     ${cmd}      shell=True    cwd=.    alias=mysql
     ...                     stdout=.cache/systemtests/mysql-${alias}.log
