@@ -33,7 +33,7 @@ require (
 	github.com/prometheus/common v0.70.0
 	github.com/rkosegi/go-http-commons v0.0.3-0.20260226141604-bacce51ac1a6
 	github.com/rkosegi/slog-config v0.0.1
-	github.com/rkosegi/yaml-toolkit v1.0.68
+	github.com/rkosegi/yaml-toolkit v1.0.69
 	github.com/samber/lo v1.53.0
 	github.com/stretchr/testify v1.11.1
 )
