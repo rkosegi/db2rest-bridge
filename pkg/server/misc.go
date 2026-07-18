@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/crud"
+	capi "github.com/rkosegi/go-http-commons/api"
 )
 
 func (rs *restServer) handleBackend(writer http.ResponseWriter, request *http.Request, backend string, handler BackendHandler) {
@@ -51,7 +52,7 @@ func (rs *restServer) handleItem(writer http.ResponseWriter, request *http.Reque
 }
 
 func (rs *restServer) GetVersionInfo(w http.ResponseWriter, _ *http.Request) {
-	out.SendWithStatus(w, &api.VersionInfo{
+	out.SendWithStatus(w, &capi.SystemVersionInfo{
 		BuildTime: &version.BuildDate,
 		BuildUser: &version.BuildUser,
 		Revision:  &version.Revision,

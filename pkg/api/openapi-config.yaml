@@ -22,3 +22,5 @@ generate:
   embedded-spec: true
 output-options:
   skip-prune: true
+import-mapping:
+  https://github.com/rkosegi/go-http-commons/releases/download/v0.0.4/api.types-spec.yaml: github.com/rkosegi/go-http-commons/api

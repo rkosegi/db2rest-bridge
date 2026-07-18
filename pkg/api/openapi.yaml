@@ -305,7 +305,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/VersionInfo"
+                $ref: "https://github.com/rkosegi/go-http-commons/releases/download/v0.0.4/api.types-spec.yaml#/components/schemas/SystemVersionInfo"
       tags:
         - info
 
@@ -418,19 +418,3 @@ components:
           additionalProperties: true
       required:
         - message
-
-    VersionInfo:
-      type: object
-      properties:
-        version:
-          description: Application version
-          type: string
-        revision:
-          description: VCS revision
-          type: string
-        build-time:
-          description: Time when application was built
-          type: string
-        build-user:
-          description: User who built application
-          type: string
