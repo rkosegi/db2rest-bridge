@@ -24,7 +24,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
-	github.com/jarcoal/httpmock v1.4.1
+	github.com/jarcoal/httpmock v1.4.2
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/oapi-codegen/runtime v1.6.0
 	github.com/prometheus/client_golang v1.24.1
