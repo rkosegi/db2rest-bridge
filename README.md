@@ -8,6 +8,7 @@ Currently only MySQL/MariaDB backend is supported.
 ```yaml
 ---
 server:
+  api_prefix: /api/v1
   listen_address: 0.0.0.0:22001
   cors:
     allowed_origins: ["*"]
