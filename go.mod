@@ -33,7 +33,7 @@ require (
 	github.com/rkosegi/slog-config v0.0.1
 	github.com/rkosegi/yaml-toolkit v1.0.69
 	github.com/samber/lo v1.53.0
-	github.com/stretchr/testify v1.12.0
+	github.com/stretchr/testify v1.12.1
 )
 
 require (
