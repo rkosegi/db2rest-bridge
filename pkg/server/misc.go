@@ -60,8 +60,8 @@ func (rs *restServer) GetVersionInfo(w http.ResponseWriter, _ *http.Request) {
 	}, http.StatusOK)
 }
 
-func extractIds(objs []api.UntypedDto, idCol string) ([]interface{}, error) {
-	var ids []interface{}
+func extractIds(objs []api.UntypedDto, idCol string) ([]any, error) {
+	var ids []any
 	for _, obj := range objs {
 		if id, ok := obj[idCol]; ok {
 			ids = append(ids, id)

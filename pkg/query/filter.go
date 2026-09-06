@@ -27,12 +27,12 @@ import (
 type simpleExpr struct {
 	name string
 	op   Op
-	val  interface{}
+	val  any
 }
 
 func (s simpleExpr) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"simple": map[string]interface{}{
+	return json.Marshal(map[string]any{
+		"simple": map[string]any{
 			"name": s.Name(),
 			"op":   s.Op(),
 			"val":  s.Value(),
@@ -48,11 +48,11 @@ func (s simpleExpr) Op() Op {
 	return s.op
 }
 
-func (s simpleExpr) Value() interface{} {
+func (s simpleExpr) Value() any {
 	return s.val
 }
 
-func wrapStr(v interface{}, q string) interface{} {
+func wrapStr(v any, q string) any {
 	if _, ok := v.(string); ok {
 		return q + v.(string) + q
 	}
@@ -69,8 +69,8 @@ type junctionExpr struct {
 }
 
 func (j junctionExpr) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"junction": map[string]interface{}{
+	return json.Marshal(map[string]any{
+		"junction": map[string]any{
 			"sub": j.Sub(),
 			"op":  j.Op(),
 		},
@@ -101,7 +101,7 @@ type notExpr struct {
 }
 
 func (n notExpr) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
+	return json.Marshal(map[string]any{
 		"not": n.Sub(),
 	})
 }
@@ -114,7 +114,7 @@ func (n notExpr) String() string {
 	return fmt.Sprintf("NOT (%s)", n.expr.String())
 }
 
-func SimpleExpr(name string, op Op, val interface{}) FilterExpression {
+func SimpleExpr(name string, op Op, val any) FilterExpression {
 	return &simpleExpr{name: name, op: op, val: val}
 }
 
@@ -128,12 +128,12 @@ func Not(expr FilterExpression) FilterExpression {
 
 type inExpr struct {
 	name string
-	val  []interface{}
+	val  []any
 }
 
 func (i inExpr) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"in": map[string]interface{}{
+	return json.Marshal(map[string]any{
+		"in": map[string]any{
 			"name": i.Name(),
 			"val":  i.Values(),
 		},
@@ -144,17 +144,17 @@ func (i inExpr) Name() string {
 	return i.name
 }
 
-func (i inExpr) Values() []interface{} {
+func (i inExpr) Values() []any {
 	return i.val
 }
 
 func (i inExpr) String() string {
-	return fmt.Sprintf("%s IN (%s)", i.name, strings.Join(lo.Map(i.val, func(item interface{}, _ int) string {
+	return fmt.Sprintf("%s IN (%s)", i.name, strings.Join(lo.Map(i.val, func(item any, _ int) string {
 		return fmt.Sprintf("%v", wrapStr(item, "'"))
 	}), ","))
 }
 
-func In(name string, vals []interface{}) FilterExpression {
+func In(name string, vals []any) FilterExpression {
 	return &inExpr{
 		name: name,
 		val:  vals,
@@ -196,18 +196,18 @@ func UnaryExpr(name string, op Op) FilterExpression {
 
 type betweenExpr struct {
 	name        string
-	left, right interface{}
+	left, right any
 }
 
 func (b betweenExpr) Name() string {
 	return b.name
 }
 
-func (b betweenExpr) Left() interface{} {
+func (b betweenExpr) Left() any {
 	return b.left
 }
 
-func (b betweenExpr) Right() interface{} {
+func (b betweenExpr) Right() any {
 	return b.right
 }
 
@@ -224,14 +224,14 @@ func (b betweenExpr) MarshalJSON() ([]byte, error) {
 		},
 	})
 }
-func BetweenExpr(name string, left interface{}, right interface{}) FilterExpression {
+func BetweenExpr(name string, left any, right any) FilterExpression {
 	return &betweenExpr{name: name, left: left, right: right}
 }
 
 type FilterBetweenExpression struct {
-	Left  interface{} `json:"left"`
-	Name  string      `json:"name"`
-	Right interface{} `json:"right"`
+	Left  any    `json:"left"`
+	Name  string `json:"name"`
+	Right any    `json:"right"`
 }
 
 type FilterExpressionWrapper struct {
@@ -244,8 +244,8 @@ type FilterExpressionWrapper struct {
 }
 
 type FilterInExpression struct {
-	Name string        `json:"name"`
-	Val  []interface{} `json:"val"`
+	Name string `json:"name"`
+	Val  []any  `json:"val"`
 }
 
 type FilterJunctionExpression struct {
@@ -258,9 +258,9 @@ type FilterNotExpression struct {
 }
 
 type FilterSimpleExpression struct {
-	Name string      `json:"name"`
-	Op   string      `json:"op"`
-	Val  interface{} `json:"val"`
+	Name string `json:"name"`
+	Op   string `json:"op"`
+	Val  any    `json:"val"`
 }
 
 type FilterUnExpression struct {

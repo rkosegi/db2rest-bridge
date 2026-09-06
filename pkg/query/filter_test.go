@@ -66,7 +66,7 @@ func TestFilterExpressionWrapper(t *testing.T) {
 				Sub: FilterExpressionWrapper{
 					In: &FilterInExpression{
 						Name: "user_id",
-						Val:  []interface{}{1, 2, 3},
+						Val:  []any{1, 2, 3},
 					},
 				},
 			},

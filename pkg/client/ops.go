@@ -23,7 +23,6 @@ import (
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
-	"github.com/samber/lo"
 )
 
 func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, int, error) {
@@ -61,7 +60,7 @@ func (g *generic[T]) List(ctx context.Context, qry query.Interface) ([]*T, int, 
 func (g *generic[T]) Create(ctx context.Context, t *T) (*T, error) {
 	var (
 		err error
-		m   map[string]interface{}
+		m   map[string]any
 		cir *api.CreateItemResponse
 	)
 	if m, err = g.encFn(t); err != nil {
@@ -114,7 +113,7 @@ func (g *generic[T]) Delete(ctx context.Context, id string) error {
 func (g *generic[T]) Update(ctx context.Context, id string, obj *T) (*T, error) {
 	var (
 		err  error
-		m    map[string]interface{}
+		m    map[string]any
 		resp *api.UpdateItemByIdResponse
 	)
 	if m, err = g.encFn(obj); err != nil {
@@ -170,8 +169,8 @@ func (g *generic[T]) Query(ctx context.Context, name string, qry query.Interface
 		qry = query.DefaultQuery
 	}
 	if resp, err = g.c.QueryNamedWithResponse(ctx, g.be, name, &api.QueryNamedParams{
-		PageSize:   lo.ToPtr(qry.Paging().Size()),
-		PageOffset: lo.ToPtr(api.PageOffset(qry.Paging().Offset())),
+		PageSize:   new(qry.Paging().Size()),
+		PageOffset: new(api.PageOffset(qry.Paging().Offset())),
 		Arg:        &args,
 	}); err != nil {
 		return nil, err

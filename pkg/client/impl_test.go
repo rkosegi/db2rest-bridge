@@ -52,7 +52,7 @@ func TestOpList(t *testing.T) {
 		NewJsonResponderOrPanic(http.StatusOK, api.PagedResult{
 			TotalCount: lo.ToPtr(1),
 			Data: lo.ToPtr([]api.UntypedDto{
-				map[string]interface{}{
+				map[string]any{
 					"name": "Alice",
 					"age":  42,
 				},

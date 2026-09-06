@@ -25,7 +25,7 @@ import (
 	"github.com/samber/lo"
 )
 
-func mapValue(ct *sql.ColumnType, val interface{}) interface{} {
+func mapValue(ct *sql.ColumnType, val any) any {
 	switch ct.DatabaseTypeName() {
 	case "DATETIME", "TIMESTAMP":
 		x := &sql.NullTime{}
@@ -63,29 +63,29 @@ func getRowMetadata(rows *sql.Rows) ([]string, []*sql.ColumnType, error) {
 }
 
 func mapEntity(rows *sql.Rows, columns []string, columnTypes []*sql.ColumnType) (res api.UntypedDto, err error) {
-	values := make([]interface{}, len(columns))
+	values := make([]any, len(columns))
 	for i := range values {
-		values[i] = new(interface{})
+		values[i] = new(any)
 	}
 	res = make(api.UntypedDto, len(values))
 	if err = rows.Scan(values...); err != nil {
 		return nil, err
 	}
 	for i, column := range columns {
-		res[column] = mapValue(columnTypes[i], *(values[i].(*interface{})))
+		res[column] = mapValue(columnTypes[i], *(values[i].(*any)))
 	}
 	return res, nil
 }
 
-func createReplaceQuery(entity string, body api.UntypedDto) (string, []interface{}) {
+func createReplaceQuery(entity string, body api.UntypedDto) (string, []any) {
 	return createInsertOrReplaceQuery("REPLACE", entity, body)
 }
 
-func createInsertQuery(entity string, body api.UntypedDto) (string, []interface{}) {
+func createInsertQuery(entity string, body api.UntypedDto) (string, []any) {
 	return createInsertOrReplaceQuery("INSERT", entity, body)
 }
 
-func createInsertOrReplaceQuery(verb, entity string, body api.UntypedDto) (string, []interface{}) {
+func createInsertOrReplaceQuery(verb, entity string, body api.UntypedDto) (string, []any) {
 	sb := strings.Builder{}
 	csb := strings.Builder{}
 	vsb := strings.Builder{}
@@ -96,7 +96,7 @@ func createInsertOrReplaceQuery(verb, entity string, body api.UntypedDto) (strin
 	cols := lo.Keys(body)
 	slices.Sort(cols)
 	colCount := len(cols)
-	values := make([]interface{}, 0)
+	values := make([]any, 0)
 	csb.WriteRune('(')
 	vsb.WriteString(" VALUES(")
 	for i := 0; i < colCount; i++ {
@@ -118,7 +118,7 @@ func createInsertOrReplaceQuery(verb, entity string, body api.UntypedDto) (strin
 	return sb.String(), values
 }
 
-func createUpdateQuery(entity, idColumn string, body api.UntypedDto) (string, []interface{}) {
+func createUpdateQuery(entity, idColumn string, body api.UntypedDto) (string, []any) {
 	sb := strings.Builder{}
 	sb.WriteString("UPDATE `")
 	sb.WriteString(entity)
@@ -126,7 +126,7 @@ func createUpdateQuery(entity, idColumn string, body api.UntypedDto) (string, []
 	cols := lo.Keys(body)
 	slices.Sort(cols)
 	colCount := len(cols)
-	values := make([]interface{}, 0)
+	values := make([]any, 0)
 	for i := 0; i < colCount; i++ {
 		col := cols[i]
 		sb.WriteRune('`')

@@ -22,7 +22,7 @@ import (
 	"github.com/rkosegi/yaml-toolkit/dom"
 )
 
-func extractItemProperty[T any](propName string, item *T) interface{} {
+func extractItemProperty[T any](propName string, item *T) any {
 	if node := dom.DecodeAnyToNode(item).AsContainer().Child(propName); node != nil && node.IsLeaf() {
 		return node.AsLeaf().Value()
 	}

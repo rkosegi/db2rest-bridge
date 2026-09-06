@@ -77,7 +77,7 @@ type ErrorObject struct {
 	Code *int `json:"code,omitempty"`
 
 	// Data Ad-hoc data associated with error
-	Data *map[string]interface{} `json:"data,omitempty"`
+	Data *map[string]any `json:"data,omitempty"`
 
 	// Message Human readable message about error state
 	Message string `json:"message"`
@@ -98,7 +98,7 @@ type PagedResult struct {
 }
 
 // UntypedDto Unstructured content, dictionary of string-to-any values.
-type UntypedDto map[string]interface{}
+type UntypedDto map[string]any
 
 // Backend defines model for backend.
 type Backend = string

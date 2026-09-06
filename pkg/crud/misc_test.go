@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	testBody = map[string]interface{}{
+	testBody = map[string]any{
 		"name": "my-name",
 		"age":  30,
 	}

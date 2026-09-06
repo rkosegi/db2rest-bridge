@@ -55,14 +55,14 @@ type Interface interface {
 	// Delete deletes item by its ID
 	Delete(ctx context.Context, entity string, id string) error
 	// MultiDelete deletes items that has provided ids
-	MultiDelete(ctx context.Context, entity string, ids []interface{}) error
+	MultiDelete(ctx context.Context, entity string, ids []any) error
 	// MultiUpdate updates multiple items in one shot
 	MultiUpdate(ctx context.Context, entity string, objs []api.UntypedDto) error
 	// MultiCreate creates multiple items in one shot
 	// if replace is set to true, then items are removed in backend prior to creating, if they exist.
 	MultiCreate(ctx context.Context, entity string, replace bool, objs []api.UntypedDto) error
 	// QueryNamed executes named query that was provided in configuration.
-	QueryNamed(ctx context.Context, name string, qry query.Interface, args ...interface{}) (*api.PagedResult, error)
+	QueryNamed(ctx context.Context, name string, qry query.Interface, args ...any) (*api.PagedResult, error)
 }
 
 type NameToCrudMap map[string]Interface

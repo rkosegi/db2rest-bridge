@@ -53,7 +53,7 @@ type Builder interface {
 
 type InExpression interface {
 	Name() string
-	Values() []interface{}
+	Values() []any
 }
 
 type JunctionExpression interface {
@@ -73,12 +73,12 @@ type UnaryExpression interface {
 
 type BetweenExpression interface {
 	Name() string
-	Left() interface{}
-	Right() interface{}
+	Left() any
+	Right() any
 }
 
 type SimpleExpression interface {
 	Name() string
 	Op() Op
-	Value() interface{}
+	Value() any
 }

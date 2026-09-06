@@ -161,7 +161,7 @@ func (rs *restServer) BulkUpdate(w http.ResponseWriter, r *http.Request, backend
 		var (
 			err  error
 			body api.BulkUpdateRequest
-			ids  []interface{}
+			ids  []any
 		)
 		if err = json.NewDecoder(req.Body).Decode(&body); err != nil {
 			out.SendWithStatus(writer, err, http.StatusBadRequest)
@@ -192,7 +192,7 @@ func (rs *restServer) QueryNamed(w http.ResponseWriter, r *http.Request, backend
 			res *api.PagedResult
 			err error
 		)
-		var args []interface{}
+		var args []any
 		if params.Arg != nil {
 			for _, arg := range *params.Arg {
 				args = append(args, arg)

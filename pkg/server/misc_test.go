@@ -25,7 +25,7 @@ import (
 
 func TestExtractIds(t *testing.T) {
 	var (
-		ids []interface{}
+		ids []any
 		err error
 	)
 	ids, err = extractIds([]api.UntypedDto{
@@ -35,7 +35,7 @@ func TestExtractIds(t *testing.T) {
 		},
 	}, "id")
 	assert.NoError(t, err)
-	assert.Equal(t, []interface{}{4}, ids)
+	assert.Equal(t, []any{4}, ids)
 
 	_, err = extractIds([]api.UntypedDto{
 		{

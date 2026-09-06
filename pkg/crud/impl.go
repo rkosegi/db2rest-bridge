@@ -161,7 +161,7 @@ func (be *impl) ListItems(ctx context.Context, entity string, qe query.Interface
 	}, nil
 }
 
-func (be *impl) QueryNamed(ctx context.Context, name string, qry query.Interface, args ...interface{}) (*api.PagedResult, error) {
+func (be *impl) QueryNamed(ctx context.Context, name string, qry query.Interface, args ...any) (*api.PagedResult, error) {
 	if !*be.config.Read {
 		return nil, errReadNotAllowed
 	}
@@ -200,7 +200,7 @@ func (be *impl) QueryNamed(ctx context.Context, name string, qry query.Interface
 	}, nil
 }
 
-func (be *impl) fetchRows(ctx context.Context, qry string, args ...interface{}) ([]api.UntypedDto, error) {
+func (be *impl) fetchRows(ctx context.Context, qry string, args ...any) ([]api.UntypedDto, error) {
 	rows, err := be.config.DB().QueryContext(ctx, qry, args...)
 	if err != nil {
 		return nil, err
@@ -297,7 +297,7 @@ func (be *impl) Update(ctx context.Context, entity, id string, body api.UntypedD
 	return be.fetchOneItem(ctx, entity, id, true)
 }
 
-func remapValue(v interface{}, ct *sql.ColumnType) interface{} {
+func remapValue(v any, ct *sql.ColumnType) any {
 	switch v := v.(type) {
 	case string:
 		if ct.DatabaseTypeName() == "DATETIME" || ct.DatabaseTypeName() == "TIMESTAMP" || ct.DatabaseTypeName() == "DATE" {
@@ -355,7 +355,7 @@ func (be *impl) Create(ctx context.Context, entity string, body api.UntypedDto) 
 	return be.fetchOneItem(ctx, entity, strconv.FormatInt(id, 10), true)
 }
 
-func (be *impl) MultiDelete(ctx context.Context, entity string, ids []interface{}) error {
+func (be *impl) MultiDelete(ctx context.Context, entity string, ids []any) error {
 	if !*be.config.Delete {
 		return errDeleteNotAllowed
 	}
@@ -423,7 +423,7 @@ func (be *impl) MultiCreate(ctx context.Context, entity string, replace bool, ob
 		}
 		var (
 			qry    string
-			values []interface{}
+			values []any
 		)
 		if replace {
 			qry, values = createReplaceQuery(entity, obj)

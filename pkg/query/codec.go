@@ -129,9 +129,9 @@ func EncodeRequest(req *http.Request, qry Interface) error {
 	return nil
 }
 
-func decodeExprFromMap(m map[string]interface{}) FilterExpression {
+func decodeExprFromMap(m map[string]any) FilterExpression {
 	var (
-		sub map[string]interface{}
+		sub map[string]any
 		ok  bool
 	)
 	if sub, ok = hasSubMap("simple", m); ok {
@@ -155,49 +155,49 @@ func decodeExprFromMap(m map[string]interface{}) FilterExpression {
 	return nil
 }
 
-func betweenExprFromMap(m map[string]interface{}) FilterExpression {
+func betweenExprFromMap(m map[string]any) FilterExpression {
 	return BetweenExpr(fmt.Sprintf("%v", m["name"]), m["left"], m["right"])
 }
 
-func hasSubMap(key string, m map[string]interface{}) (inner map[string]interface{}, ok bool) {
+func hasSubMap(key string, m map[string]any) (inner map[string]any, ok bool) {
 	if _, ok = m[key]; ok {
-		if inner, ok = m[key].(map[string]interface{}); ok && inner != nil {
+		if inner, ok = m[key].(map[string]any); ok && inner != nil {
 			return inner, ok
 		}
 	}
 	return nil, false
 }
 
-func junctionExprFromMap(m map[string]interface{}) FilterExpression {
+func junctionExprFromMap(m map[string]any) FilterExpression {
 	op := Op(m["op"].(string))
-	sub := m["sub"].([]interface{})
-	return Junction(op, lo.Map(sub, func(item interface{}, _ int) FilterExpression {
-		return decodeExprFromMap(item.(map[string]interface{}))
+	sub := m["sub"].([]any)
+	return Junction(op, lo.Map(sub, func(item any, _ int) FilterExpression {
+		return decodeExprFromMap(item.(map[string]any))
 	})...)
 }
 
-func simpleExprFromMap(m map[string]interface{}) FilterExpression {
+func simpleExprFromMap(m map[string]any) FilterExpression {
 	return SimpleExpr(
 		fmt.Sprintf("%v", m["name"]),
 		Op(m["op"].(string)),
 		fmt.Sprintf("%v", m["val"]))
 }
 
-func inExprFromMap(m map[string]interface{}) FilterExpression {
-	return In(fmt.Sprintf("%v", m["name"]), m["val"].([]interface{}))
+func inExprFromMap(m map[string]any) FilterExpression {
+	return In(fmt.Sprintf("%v", m["name"]), m["val"].([]any))
 }
 
-func unExprFromMap(m map[string]interface{}) FilterExpression {
+func unExprFromMap(m map[string]any) FilterExpression {
 	return UnaryExpr(fmt.Sprintf("%v", m["name"]), Op(m["op"].(string)))
 }
 
-func notExprFromMap(m map[string]interface{}) FilterExpression {
+func notExprFromMap(m map[string]any) FilterExpression {
 	return Not(decodeExprFromMap(m))
 }
 
 func DecodeFilter(str string) (FilterExpression, error) {
 	var (
-		m   map[string]interface{}
+		m   map[string]any
 		err error
 	)
 	err = json.NewDecoder(strings.NewReader(str)).Decode(&m)

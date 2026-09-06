@@ -31,14 +31,14 @@ import (
 
 // excludeProps return untyped object with all provided properties removed
 func excludeProps(in api.UntypedDto, props []string) api.UntypedDto {
-	return lo.OmitBy(in, func(key string, value interface{}) bool {
+	return lo.OmitBy(in, func(key string, value any) bool {
 		return slices.Contains(props, key)
 	})
 }
 
 // onlyProps return untyped object with only provided properties
 func onlyProps(in api.UntypedDto, props []string) api.UntypedDto {
-	return lo.OmitBy(in, func(key string, value interface{}) bool {
+	return lo.OmitBy(in, func(key string, value any) bool {
 		return !slices.Contains(props, key)
 	})
 }

@@ -41,12 +41,12 @@ func TestExpressionString(t *testing.T) {
 
 	t.Run("IN expression", func(t *testing.T) {
 		assert.Equal(t, "user_id IN (1,2,3)",
-			In("user_id", []interface{}{1, 2, 3}).String())
+			In("user_id", []any{1, 2, 3}).String())
 
 		assert.Equal(t, "((salary > 1200) AND (department IN ('HR','management')))",
 			Junction(OpAnd,
 				SimpleExpr("salary", ">", 1200),
-				In("department", []interface{}{"HR", "management"}),
+				In("department", []any{"HR", "management"}),
 			).String())
 	})
 }
@@ -175,7 +175,7 @@ func TestDecodeEncode(t *testing.T) {
 	t.Run("IN expression (num)", func(t *testing.T) {
 		data, err = EncodeFilter(
 			Not(
-				In("user", []interface{}{"Bob", "Alice"}),
+				In("user", []any{"Bob", "Alice"}),
 			),
 		)
 		assert.NoError(t, err)
@@ -262,8 +262,8 @@ func TestDecodeRequest(t *testing.T) {
 }
 
 func TestDecodeExprFromMap(t *testing.T) {
-	assert.Nil(t, decodeExprFromMap(map[string]interface{}{
-		"invalid": map[string]interface{}{},
+	assert.Nil(t, decodeExprFromMap(map[string]any{
+		"invalid": map[string]any{},
 	}))
 }
 

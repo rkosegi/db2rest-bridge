@@ -26,7 +26,7 @@ import (
 )
 
 func TestExcludeProps(t *testing.T) {
-	in := map[string]interface{}{
+	in := map[string]any{
 		"created": "2024-11-01 22:32:21",
 		"name":    "Hello",
 		"age":     42,
@@ -38,7 +38,7 @@ func TestExcludeProps(t *testing.T) {
 }
 
 func TestOnlyProps(t *testing.T) {
-	out := onlyProps(map[string]interface{}{
+	out := onlyProps(map[string]any{
 		"id":   999,
 		"name": "Alice",
 		"age":  30,

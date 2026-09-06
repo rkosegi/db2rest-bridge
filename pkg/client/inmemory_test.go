@@ -121,7 +121,7 @@ func TestInMemoryCrud(t *testing.T) {
 
 	t.Run("filter - in expression", func(t *testing.T) {
 		items, total, err = ic.List(t.Context(), query.NewBuilder().
-			Filter(query.In("ExtID", []interface{}{12, 14, 16, 18})).
+			Filter(query.In("ExtID", []any{12, 14, 16, 18})).
 			Build())
 		assert.NoError(t, err)
 		assert.Equal(t, 2, total)
@@ -129,7 +129,7 @@ func TestInMemoryCrud(t *testing.T) {
 
 	t.Run("filter - not expression", func(t *testing.T) {
 		items, total, err = ic.List(t.Context(), query.NewBuilder().
-			Filter(query.Not(query.In("ExtID", []interface{}{12, 14, 16, 18}))).
+			Filter(query.Not(query.In("ExtID", []any{12, 14, 16, 18}))).
 			Build())
 		assert.NoError(t, err)
 		assert.Equal(t, 1, total)
