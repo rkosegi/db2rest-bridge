@@ -47,7 +47,7 @@ func onlyProps(in api.UntypedDto, props []string) api.UntypedDto {
 func ensureResponseCode(r *http.Response, code int, body []byte) error {
 	if r.StatusCode != code {
 		return &types.ErrorWithStatus{
-			Status: code,
+			Status: http.StatusBadGateway,
 			Msg: fmt.Sprintf("unexpected error code: %d, wanted: %d, body: %s", r.StatusCode, code,
 				string(bytes.TrimSpace(body)))}
 	}
