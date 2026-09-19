@@ -28,10 +28,37 @@ type imCrud[T any] struct {
 	items []*T
 	// this function checks if given string is "key" of given item
 	isKeyFn func(string, *T) bool
+	r       *imRawImpl
+}
+
+type imRawImpl struct{}
+
+func (i *imRawImpl) BulkUpdate(context.Context, []dba.UntypedDto, dba.BulkUpdateMode) error {
+	panic("implement me")
+}
+
+func (i *imRawImpl) List(context.Context, query.Interface) (*dba.PagedResult, error) {
+	panic("implement me")
+}
+
+func (i *imRawImpl) Create(context.Context, dba.UntypedDto) (*dba.UntypedDto, error) {
+	panic("implement me")
+}
+
+func (i *imRawImpl) Get(context.Context, string) (*dba.UntypedDto, error) {
+	panic("implement me")
+}
+
+func (i *imRawImpl) Update(context.Context, string, dba.UntypedDto) (*dba.UntypedDto, error) {
+	panic("implement me")
+}
+
+func (i *imRawImpl) Query(context.Context, string, query.Interface, []string) (*dba.PagedResult, error) {
+	panic("implement me")
 }
 
 func NewInMemory[T any](isKeyFn func(string, *T) bool, initData []*T) GenericInterface[T] {
-	return &imCrud[T]{isKeyFn: isKeyFn, items: initData}
+	return &imCrud[T]{isKeyFn: isKeyFn, items: initData, r: &imRawImpl{}}
 }
 
 func (i *imCrud[T]) List(_ context.Context, q query.Interface) ([]*T, int, error) {
@@ -73,10 +100,14 @@ func (i *imCrud[T]) Update(_ context.Context, key string, t *T) (*T, error) {
 	return t, nil
 }
 
+func (i *imCrud[T]) Raw() RawInterface {
+	return i.r
+}
+
 func (i *imCrud[T]) BulkUpdate(_ context.Context, _ []*T, _ dba.BulkUpdateMode) error {
 	panic("implement me")
 }
 
-func (i *imCrud[T]) Query(_ context.Context, _ string, _ query.Interface, _ []string) (*dba.PagedResult, error) {
+func (i *imCrud[T]) Query(_ context.Context, _ string, _ query.Interface, _ []string) ([]*T, int, error) {
 	panic("implement me")
 }
