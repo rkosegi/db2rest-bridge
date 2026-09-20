@@ -24,7 +24,6 @@ import (
 	. "github.com/jarcoal/httpmock"
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/query"
-	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,8 +49,8 @@ func TestOpList(t *testing.T) {
 	defer DeactivateAndReset()
 	RegisterResponder("GET", "http://loopback/dummy/mock",
 		NewJsonResponderOrPanic(http.StatusOK, api.PagedResult{
-			TotalCount: lo.ToPtr(1),
-			Data: lo.ToPtr([]api.UntypedDto{
+			TotalCount: new(1),
+			Data: new([]api.UntypedDto{
 				map[string]any{
 					"name": "Alice",
 					"age":  42,

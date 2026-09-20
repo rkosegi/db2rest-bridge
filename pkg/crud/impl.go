@@ -157,7 +157,7 @@ func (be *impl) ListItems(ctx context.Context, entity string, qe query.Interface
 	return &api.PagedResult{
 		Data:       &res,
 		TotalCount: &cnt,
-		Offset:     lo.ToPtr(float32(qe.Paging().Offset())),
+		Offset:     new(float32(qe.Paging().Offset())),
 	}, nil
 }
 
@@ -196,7 +196,7 @@ func (be *impl) QueryNamed(ctx context.Context, name string, qry query.Interface
 	return &api.PagedResult{
 		TotalCount: &cnt,
 		Data:       &items,
-		Offset:     lo.ToPtr(float32(offset)),
+		Offset:     new(float32(offset)),
 	}, nil
 }
 

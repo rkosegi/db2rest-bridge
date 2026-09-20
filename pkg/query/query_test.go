@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/api"
-	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -247,9 +246,9 @@ func TestDecodeRequest(t *testing.T) {
 	req.URL.RawQuery = q.Encode()
 	s := `{"not":{"simple":{"op":"=","name":"name","val":"John"}}}`
 	qry, err = FromParams(
-		lo.ToPtr(31),
-		lo.ToPtr(20),
-		lo.ToPtr([]string{"name=asc", "age=desc"}),
+		new(31),
+		new(20),
+		new([]string{"name=asc", "age=desc"}),
 		&s,
 	)
 	assert.NoError(t, err)
