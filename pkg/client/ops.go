@@ -111,6 +111,9 @@ func (g *generic[T]) Query(ctx context.Context, s string, q query.Interface, arg
 func (g *generic[T]) Raw() RawInterface {
 	return g.r
 }
+func (g *generic[T]) Api() api.ClientWithResponsesInterface {
+	return g.r.c
+}
 
 func (r *rawImpl) List(ctx context.Context, qry query.Interface) (*api.PagedResult, error) {
 	var (

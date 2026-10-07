@@ -23,7 +23,7 @@ FROM cgr.dev/chainguard/static:latest
 ARG VERSION
 ARG BUILD_DATE
 ARG GIT_COMMIT
-COPY --from=builder /build/dist/app /
+COPY --from=builder /build/dist/db2rest /
 
 LABEL org.opencontainers.image.url="https://github.com/rkosegi/db2rest-bridge" \
       org.opencontainers.image.documentation="https://github.com/rkosegi/db2rest-bridge/blob/main/README.md" \
@@ -39,6 +39,7 @@ LABEL org.opencontainers.image.url="https://github.com/rkosegi/db2rest-bridge" \
 USER 65532:65532
 
 WORKDIR /
-ENTRYPOINT ["/app"]
+ENTRYPOINT ["/db2rest"]
+CMD ["server"]
 
 EXPOSE 22001

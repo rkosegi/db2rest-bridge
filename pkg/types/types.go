@@ -168,16 +168,16 @@ var defCorsConfig = ccfg.CorsConfig{
 	AllowedOrigins: []string{"*"},
 }
 
-type LoggingConfig struct {
-	Level  *string `yaml:"level,omitempty"`
-	Format *string `yaml:"format,omitempty"`
+type ClientProfile struct {
+	Url string `json:"url" yaml:"url"`
 }
 
 type Config struct {
-	Server        ccfg.ServerConfig `yaml:"server"`
-	Backends      Backends          `yaml:"backends"`
-	LoggingConfig *LoggingConfig    `yaml:"logging,omitempty"`
-	PageSizeLimit *int              `json:"page_size_limit,omitempty" yaml:"page_size_limit,omitempty"`
+	Server              ccfg.ServerConfig        `yaml:"server"`
+	Backends            Backends                 `yaml:"backends"`
+	ActiveClientProfile string                   `json:"active_client_profile" yaml:"active_client_profile"`
+	ClientProfiles      map[string]ClientProfile `json:"client_profiles" yaml:"client_profiles"`
+	PageSizeLimit       *int                     `json:"page_size_limit,omitempty" yaml:"page_size_limit,omitempty"`
 }
 
 // CheckAndNormalize sets any missing optional values and ensures all values are semantically correct.
@@ -243,15 +243,6 @@ func (c *Config) CheckAndNormalize() error {
 			}
 			(*v.Entities)[x].IdColumn = &y
 		}
-	}
-	if c.LoggingConfig == nil {
-		c.LoggingConfig = &LoggingConfig{Level: &defaultLogLevel, Format: &defaultLogFormat}
-	}
-	if c.LoggingConfig.Level == nil {
-		c.LoggingConfig.Level = &defaultLogLevel
-	}
-	if c.LoggingConfig.Format == nil {
-		c.LoggingConfig.Format = &defaultLogFormat
 	}
 	return nil
 }

@@ -56,7 +56,7 @@ build-local: gen
 	test -d dist || mkdir dist
 	go fmt ./...
 	go mod tidy
-	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o dist/app pkg/cmd/main.go
+	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o dist/db2rest pkg/cli/main.go
 
 lint:
 	pre-commit run --all-files
@@ -74,7 +74,10 @@ prepare:
 
 it:
 	rm -f .cache/systemtests/*.log   .cache/systemtests/*.err
-	python3 -m robot --outputdir .cache/systemtests systemtests/misc-suite.robot systemtests/crud-suite.robot
+	python3 -m robot --outputdir .cache/systemtests systemtests/*-suite.robot
+
+run:
+	$(DOCKER) run -ti -p 22001:22001 -v $(PWD)/config.yaml:/config.yaml ghcr.io/rkosegi/db2rest-bridge:v$(VERSION) server --log-level debug --log-format json
 
 bump-patch-version:
 	@echo Current: $(VERSION)

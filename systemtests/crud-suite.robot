@@ -38,7 +38,7 @@ Setup
     Db2rest.Write To Yaml   ${APP_CONFIG}   ${config}
     Db2rest.Init Session
     Builtin.Log             Starting server
-    Process.Start Process   go run pkg/cmd/main.go --config ${APP_CONFIG}
+    Process.Start Process   go run pkg/cli/main.go server --log-level debug --config ${APP_CONFIG}
     ...                     cwd=.    alias=Server   shell=True
     ...                     stdout=.cache/systemtests/app-${SUITE_ID}.log  stderr=.cache/systemtests/app-${SUITE_ID}.err
     MySQL.Write Config      ${MYSQL_CNF_FILE}     ${MYSQL_HOST}   ${MYSQL_DDL_USER}     ${MYSQL_DDL_PASS}   ${MYSQL_DB}

@@ -19,11 +19,11 @@ package server
 import (
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/rkosegi/db2rest-bridge/pkg/crud"
 	"github.com/rkosegi/db2rest-bridge/pkg/types"
-	xlog "github.com/rkosegi/slog-config"
 )
 
 type ItemHandler func(c crud.Interface, entity, id string, writer http.ResponseWriter, request *http.Request)
@@ -35,9 +35,22 @@ type Interface interface {
 	Run(ctx context.Context) error
 }
 
-func New(cfg *types.Config) Interface {
-	return &restServer{
-		cfg: cfg,
-		l:   xlog.MustNew(*cfg.LoggingConfig.Level, xlog.LogFormat(*cfg.LoggingConfig.Format)).Logger(),
+type Opt func(*restServer)
+
+func WithLogger(l *slog.Logger) Opt {
+	return func(server *restServer) {
+		server.l = l
 	}
+}
+
+func New(cfg *types.Config, opts ...Opt) Interface {
+	rs := &restServer{
+		cfg: cfg,
+	}
+	for _, opt := range append([]Opt{
+		WithLogger(slog.Default()),
+	}, opts...) {
+		opt(rs)
+	}
+	return rs
 }

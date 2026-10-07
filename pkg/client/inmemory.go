@@ -31,6 +31,10 @@ type imCrud[T any] struct {
 	r       *imRawImpl
 }
 
+func (i *imCrud[T]) Api() dba.ClientWithResponsesInterface {
+	return nil
+}
+
 type imRawImpl struct{}
 
 func (i *imRawImpl) BulkUpdate(context.Context, []dba.UntypedDto, dba.BulkUpdateMode) error {

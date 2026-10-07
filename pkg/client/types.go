@@ -24,6 +24,8 @@ import (
 )
 
 type GenericInterface[T any] interface {
+	// Api get access to generated OpenAPI interface
+	Api() api.ClientWithResponsesInterface
 	// Raw gets access to untyped API
 	Raw() RawInterface
 	Create(context.Context, *T) (*T, error)
@@ -53,6 +55,8 @@ type RawInterface interface {
 }
 
 type Opt[T any] func(*generic[T])
+type GenericOpt[T any] func(*generic[T])
+type RawOpt func(*rawImpl)
 
 type EncoderFn[T any] func(*T) (api.UntypedDto, error)
 type DecoderFn[T any] func(dto api.UntypedDto) (*T, error)

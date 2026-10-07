@@ -159,7 +159,7 @@ func (rs *restServer) Run(ctx context.Context) (err error) {
 		r.Handle(rs.cfg.Server.Telemetry.Path, promhttp.Handler())
 	}
 
-	rs.l.DebugContext(ctx, "starting server", "listen-address", rs.cfg.Server.ListenAddress,
+	rs.l.InfoContext(ctx, "starting server", "listen-address", rs.cfg.Server.ListenAddress,
 		"api-prefix", rs.cfg.Server.APIPrefix)
 
 	return rs.cfg.Server.RunUntil(&http.Server{

@@ -28,7 +28,7 @@ type rawImpl struct {
 	l   *slog.Logger
 	be  string
 	ent string
-	c   *api.ClientWithResponses
+	c   api.ClientWithResponsesInterface
 	// list of fields not to sent during updates
 	roProps []string
 	// name of property that represents primary key
@@ -92,6 +92,10 @@ func WithClientOptions[T any](copts ...api.ClientOption) Opt[T] {
 	return func(g *generic[T]) {
 		g.copts = copts
 	}
+}
+
+func NewApi(endpoint string, opts ...api.ClientOption) (api.ClientWithResponsesInterface, error) {
+	return api.NewClientWithResponses(endpoint, opts...)
 }
 
 func New[T any](endpoint, backend, entity string, opts ...Opt[T]) (GenericInterface[T], error) {
