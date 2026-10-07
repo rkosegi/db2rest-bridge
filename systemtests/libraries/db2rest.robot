@@ -54,19 +54,6 @@ Write To Yaml
     ${str}              Evaluate    yaml.safe_dump(${dict}, default_flow_style=False)    modules=yaml
     OperatingSystem.Create File     ${path}    ${str}
 
-Write Config
-    [Documentation]     Writes configuration to specified file
-    [Arguments]         ${path}  ${backend}  ${dsn}
-    ${body}             Create Config   ${backend}  ${dsn}
-    JSONLibrary.Dump Json To File   ${path}     ${body}
-
-Merge To Config
-    [Documentation]     Merges given dictionary to existing configuration file
-    [Arguments]         ${path}     ${dict}
-    ${json}             JSONLibrary.Load Json From File   ${path}
-    ${json}             Merge Recursive    ${json}    ${dict}
-    JSONLibrary.Dump Json To File   ${path}     ${json}
-
 Merge Recursive
     [Documentation]     Merges 2 dictionaries recursively
     [Arguments]         ${d1}    ${d2}
@@ -99,6 +86,30 @@ Get Server Version
     ${response}         REST Get        /version
     RequestsLibrary.Status Should Be    200    ${response}
     RETURN              ${response.json()}
+
+Run CLI
+    [Documentation]     Run a CLI
+    [Arguments]         ${id}   ${args}
+    Builtin.Log         Running CLI with args ${args}
+    ${needConfig}       Evaluate    $args.startswith('client')
+    IF  ${needConfig}
+        ${args}     Builtin.Catenate    --config ${APP_CONFIG}      ${args}
+    END
+    ${result}           Process.Run Process     ./dist/db2rest ${args}
+    ...                 cwd=.    alias=${id}   shell=True
+    ...                 stdout=.cache/systemtests/${SUITE_ID}-${id}.log
+    ...                 stderr=.cache/systemtests/${SUITE_ID}-${id}.err
+    ${stdout}           OperatingSystem.Get File    .cache/systemtests/${SUITE_ID}-${id}.log
+    Builtin.Log         ${stdout}
+    ${stderr}           OperatingSystem.Get File    .cache/systemtests/${SUITE_ID}-${id}.err
+    Builtin.Log         ${stderr}
+    RETURN              ${result}
+
+Run CLI And Expect Success
+    [Documentation]     Run a CLI and expect exit code to be 0
+    [Arguments]         ${id}   ${args}
+    ${result}           Run CLI     ${id}   ${args}
+    Builtin.Should Be Equal    ${result.rc}    0    type=int
 
 Create Item
     [Documentation]     Create single item in backend

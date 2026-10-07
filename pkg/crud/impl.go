@@ -22,7 +22,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -42,7 +41,6 @@ var (
 )
 
 type impl struct {
-	io.Closer
 	config  *types.BackendConfig
 	l       *slog.Logger
 	mdCache *ttlcache.Cache[string, map[string]*sql.ColumnType]
@@ -443,4 +441,12 @@ func (be *impl) MultiCreate(ctx context.Context, entity string, replace bool, ob
 	}
 
 	return tx.Commit()
+}
+
+func (be *impl) Close() error {
+	if be.mdCache != nil {
+		be.mdCache.Stop()
+		be.mdCache = nil
+	}
+	return nil
 }
