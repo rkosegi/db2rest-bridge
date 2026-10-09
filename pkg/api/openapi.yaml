@@ -343,11 +343,11 @@ components:
       name: page-size
       in: query
       required: false
-      description: Page size
+      description: Page size. Actual value used on server is capped based on policy.
       schema:
         type: integer
         minimum: 1
-        maximum: 100
+        maximum: 1000
 
   schemas:
     BulkUpdateMode:

@@ -39,6 +39,11 @@ var (
 	ErrNoBackend     = errors.New("no backend configured")
 )
 
+type EntityConfig struct {
+	IdColumn      *string `json:"id_column,omitempty" yaml:"id_column,omitempty"`
+	PageSizeLimit *int    `json:"page_size_limit,omitempty" yaml:"page_size_limit,omitempty"`
+}
+
 type BackendConfig struct {
 	// optional name of driver, if omitted, then "mysql"  is assumed
 	Driver *string `yaml:"driver,omitempty"`
@@ -47,6 +52,7 @@ type BackendConfig struct {
 	Read   *bool   `yaml:"read,omitempty"`
 	Update *bool   `yaml:"update,omitempty"`
 	Delete *bool   `yaml:"delete,omitempty"`
+	// deprecated
 	// Optional mapping from entity (table) name to ID column.
 	// If not specified, then "id" is assumed
 	IdMap *map[string]string `yaml:"id_map,omitempty"`
@@ -54,6 +60,9 @@ type BackendConfig struct {
 	Queries map[string]string `yaml:"queries"`
 	// DDL queries to be executed at start. Be careful here.
 	InitDDLs []string `yaml:"init_ddls,omitempty"`
+
+	PageSizeLimit *int                      `json:"page_size_limit,omitempty" yaml:"page_size_limit,omitempty"`
+	Entities      *map[string]*EntityConfig `yaml:"entities,omitempty"`
 
 	MaxOpenConnections *int           `yaml:"max_open_connections,omitempty"`
 	MaxIdleConnections *int           `yaml:"max_idle_connections,omitempty"`
@@ -65,10 +74,28 @@ type BackendConfig struct {
 
 // IdColumn gets ID column for given entity, see IdMap
 func (be *BackendConfig) IdColumn(ent string) string {
-	if col, ok := (*be.IdMap)[ent]; ok {
-		return col
+	if e, hasEnt := (*be.Entities)[ent]; hasEnt {
+		if e.IdColumn != nil {
+			return *e.IdColumn
+		}
 	}
 	return "id"
+}
+
+func (be *BackendConfig) pageSizeLimitForEntity(ent string) *int {
+	if e, hasEnt := (*be.Entities)[ent]; hasEnt {
+		if e.PageSizeLimit != nil {
+			return e.PageSizeLimit
+		}
+	}
+	return be.PageSizeLimit
+}
+
+func (be *BackendConfig) ApplyPageSizeLimit(ent string, current int) int {
+	if limit := be.pageSizeLimitForEntity(ent); limit != nil {
+		return *limit
+	}
+	return current
 }
 
 func (be *BackendConfig) Open(ctx context.Context) error {
@@ -150,10 +177,14 @@ type Config struct {
 	Server        ccfg.ServerConfig `yaml:"server"`
 	Backends      Backends          `yaml:"backends"`
 	LoggingConfig *LoggingConfig    `yaml:"logging,omitempty"`
+	PageSizeLimit *int              `json:"page_size_limit,omitempty" yaml:"page_size_limit,omitempty"`
 }
 
 // CheckAndNormalize sets any missing optional values and ensures all values are semantically correct.
 func (c *Config) CheckAndNormalize() error {
+	if c.PageSizeLimit == nil {
+		c.PageSizeLimit = new(20)
+	}
 	if c.Server.ListenAddress == "" {
 		c.Server.ListenAddress = ":22001"
 	}
@@ -198,6 +229,19 @@ func (c *Config) CheckAndNormalize() error {
 		}
 		if v.Delete == nil {
 			v.Delete = &FALSE
+		}
+		if v.PageSizeLimit == nil {
+			v.PageSizeLimit = c.PageSizeLimit
+		}
+		if v.Entities == nil {
+			v.Entities = &map[string]*EntityConfig{}
+		}
+		// migrate idMap over to Entities
+		for x, y := range *v.IdMap {
+			if _, ok := (*v.Entities)[x]; !ok {
+				(*v.Entities)[x] = &EntityConfig{}
+			}
+			(*v.Entities)[x].IdColumn = &y
 		}
 	}
 	if c.LoggingConfig == nil {

@@ -140,6 +140,9 @@ func (be *impl) ListItems(ctx context.Context, entity string, qe query.Interface
 	if flt != nil {
 		whereExpr = fmt.Sprintf(" WHERE %v", flt)
 	}
+	var pageOffset = qe.Paging().Offset()
+	pageSize := be.config.ApplyPageSizeLimit(entity, qe.Paging().Size())
+	qe = query.BuilderFrom(qe).Paging(pageOffset, pageSize).Build()
 	qry = fmt.Sprintf("SELECT COUNT(1) FROM `%s`%s", entity, whereExpr)
 	be.l.Debug("SQL", "query", qry)
 	row := be.config.DB().QueryRowContext(ctx, qry)
@@ -157,7 +160,7 @@ func (be *impl) ListItems(ctx context.Context, entity string, qe query.Interface
 	return &api.PagedResult{
 		Data:       &res,
 		TotalCount: &cnt,
-		Offset:     new(float32(qe.Paging().Offset())),
+		Offset:     new(float32(pageOffset)),
 	}, nil
 }
 
@@ -317,7 +320,6 @@ func remapValue(v any, ct *sql.ColumnType) any {
 			return bytes
 		}
 	}
-
 	return v
 }
 

@@ -15,6 +15,7 @@
 *** Settings ***
 Library    OperatingSystem
 Library    String
+Library    yaml
 Library    Collections
 Library    JSONLibrary
 Library    RequestsLibrary
@@ -32,20 +33,61 @@ Make DSN
     ${result}           String.Format String    {}:{}@tcp({})/{}?parseTime=true     ${user}     ${pass}     ${host}     ${db}
     RETURN              ${result}
 
-Write Config
-    [Documentation]     Writes configuration to specified YAML file
-    [Arguments]         ${path}  ${backend}  ${dsn}
+Create Config
+    [Documentation]     Creates base configuration object for backend
+    [Arguments]         ${backend}  ${dsn}
     ${logging}          Builtin.Create Dictionary   level=debug
     ${backendObj}       Builtin.Create Dictionary   create=${True}  read=${True}  update=${True}  delete=${True}  dsn=${dsn}
     ${backends}         Builtin.Create Dictionary   ${backend}=${backendObj}
-    ${body}             Builtin.Create Dictionary   logging=${logging}      backends=${backends}
+    ${result}           Builtin.Create Dictionary   logging=${logging}      backends=${backends}
+    RETURN              ${result}
+
+Write To Yaml
+    [Documentation]     Writes object to the YAML file
+    [Arguments]         ${path}     ${dict}
+    ${str}              yaml.Dump    ${dict}    default_flow_style=False    sort_keys=True
+    Builtin.Create File     ${path}    ${str}
+
+Write Config
+    [Documentation]     Writes configuration to specified file
+    [Arguments]         ${path}  ${backend}  ${dsn}
+    ${body}             Create Config   ${backend}  ${dsn}
     JSONLibrary.Dump Json To File   ${path}     ${body}
+
+Merge To Config
+    [Documentation]     Merges given dictionary to existing configuration file
+    [Arguments]         ${path}     ${dict}
+    ${json}             JSONLibrary.Load Json From File   ${path}
+    ${json}             Merge Recursive    ${json}    ${dict}
+    JSONLibrary.Dump Json To File   ${path}     ${json}
+
+Merge Recursive
+    [Documentation]     Merges 2 dictionaries recursively
+    [Arguments]         ${d1}    ${d2}
+    &{result}           Collections.Copy Dictionary    ${d1}
+
+    FOR    ${key}    IN    @{d2.keys()}
+        ${key_exists}=    Run Keyword And Return Status    Dictionary Should Contain Key    ${result}    ${key}
+        IF    ${key_exists}
+            ${is_dict1}=    Builtin.Evaluate    isinstance($result.get($key), dict)
+            ${is_dict2}=    Builtin.Evaluate    isinstance($d2.get($key), dict)
+            IF    ${is_dict1} and ${is_dict2}
+                ${nested_merged}=    Merge Recursive    ${result['${key}']}    ${d2['${key}']}
+                Collections.Set To Dictionary    ${result}    ${key}=${nested_merged}
+            ELSE
+                Collections.Set To Dictionary    ${result}    ${key}=${d2['${key}']}
+            END
+        ELSE
+            Collections.Set To Dictionary    ${result}    ${key}=${d2['${key}']}
+        END
+    END
+
+    RETURN    ${result}
 
 List Configured Backends
     ${response}         REST Get        /backends
     RequestsLibrary.Status Should Be    200    ${response}
     RETURN              ${response.json()}
-
 
 Get Server Version
     [Documentation]     Retrieve server version
@@ -84,6 +126,14 @@ List Items With Predicate
     ${filterStr}        Convert Json To String    ${filter}
     ${uri}              String.Format String    /{}/{}?page-offset={}&page-size={}&filter={}    ${backend}  ${entity}
     ...    ${offset}    ${size}    ${filterStr}
+    ${response}         REST Get    ${uri}
+    RequestsLibrary.Status Should Be    200    ${response}
+    RETURN              ${response.json()}
+
+List Simple
+    [Documentation]     List items without further restrictions
+    [Arguments]         ${backend}      ${entity}
+    ${uri}              String.Format String    /{}/{}    ${backend}  ${entity}
     ${response}         REST Get    ${uri}
     RequestsLibrary.Status Should Be    200    ${response}
     RETURN              ${response.json()}
