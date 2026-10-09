@@ -21,6 +21,7 @@ Suite Teardown          Teardown
 Documentation           Miscellaneous test suite
 
 *** Variables ***
+${SUITE_ID}             misc
 ${DDL_CREATE}           systemtests/data/create-geo.sql
 ${DDL_DROP}             systemtests/data/drop-geo.sql
 
@@ -28,27 +29,30 @@ ${DDL_DROP}             systemtests/data/drop-geo.sql
 Setup
     [Documentation]             Setup this suite
     Builtin.Log                 Setting up suite
+    Builtin.Set Suite Variable  ${APP_CONFIG}   .cache/systemtests/config-${SUITE_ID}.yaml
     Builtin.Log Variables
-    OperatingSystem.Remove Files     .cache/systemtests/*.log   .cache/systemtests/*.err    ${APP_CONFIG}
+    OperatingSystem.Remove Files    ${APP_CONFIG}
     Builtin.Log                 Creating config
     ${dsn}                      Db2rest.Make DSN    ${MYSQL_APP_USER}    ${MYSQL_APP_PASS}     ${MYSQL_HOST}   ${MYSQL_DB}
-    Db2rest.Write Config        ${APP_CONFIG}  demo  ${dsn}
     ${continentsConfig}         Builtin.Create Dictionary   page_size_limit=${5}
     ${countriesConfig}          Builtin.Create Dictionary   page_size_limit=${25}
     ${entitiesConfig}           Builtin.Create Dictionary   continent=${continentsConfig}   country=${countriesConfig}
     ${demoConfig}               Builtin.Create Dictionary   entities=${entitiesConfig}    page_size_limit=${10}
     ${backends}                 Builtin.Create Dictionary   demo=${demoConfig}
     ${extra}                    Builtin.Create Dictionary   backends=${backends}
-    Db2rest.Merge To Config     ${APP_CONFIG}   ${extra}
+    ${baseConfig}               Db2rest.Create Config   demo  ${dsn}
+    ${config}                   Db2rest.Merge Recursive     ${baseConfig}   ${extra}
+    Db2rest.Write To Yaml       ${APP_CONFIG}   ${config}
     Db2rest.Init Session
-    Builtin.Log                 Starting server
+    Builtin.Log                 Starting server ${SUITE_ID}
     Process.Start Process       go run pkg/cmd/main.go --config ${APP_CONFIG}
     ...                         cwd=.    alias=Server   shell=True
-    ...                         stdout=.cache/systemtests/app.log  stderr=.cache/systemtests/app.err
+    ...                         stdout=.cache/systemtests/app-${SUITE_ID}.log  stderr=.cache/systemtests/app-${SUITE_ID}.err
     MySQL.Write Config          ${MYSQL_CNF_FILE}     ${MYSQL_HOST}   ${MYSQL_DDL_USER}     ${MYSQL_DDL_PASS}   ${MYSQL_DB}
     MySQL.Run client            ${MYSQL_CNF_FILE}     ${DDL_DROP}     drop
     MySQL.Run client            ${MYSQL_CNF_FILE}     ${DDL_CREATE}     create
     Builtin.Sleep               1s
+    Db2rest.Wait For Server
 
 Teardown
     [Documentation]             Tear down this suite
@@ -59,12 +63,6 @@ Teardown
 
 
 *** Test Cases ***
-Check server version
-    [Documentation]         Check server version
-    Builtin.Log             Checking server version
-    ${version}              Builtin.Wait Until Keyword Succeeds     10   1 sec   db2rest.Get Server Version
-    Builtin.Log             ${version}
-
 
 Verify Page Size Limit Apply For Entity Override
     ${items}                List Simple     demo    country

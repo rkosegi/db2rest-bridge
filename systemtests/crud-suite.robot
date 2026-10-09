@@ -13,6 +13,7 @@
 # limitations under the License.
 
 *** Settings ***
+Resource                variables/common.robot
 Resource                libraries/mysql.robot
 Resource                libraries/db2rest.robot
 Suite Setup             Setup
@@ -20,15 +21,7 @@ Suite Teardown          Teardown
 Documentation           CRUD test suite 1
 
 *** Variables ***
-${MYSQL_HOST}           %{MYSQL_HOST=localhost}
-${MYSQL_APP_USER}       %{MYSQL_APP_USER=demo}
-${MYSQL_APP_PASS}       %{MYSQL_APP_PASS=123456}
-${MYSQL_DDL_USER}       %{MYSQL_DDL_USER=root}
-${MYSQL_DDL_PASS}       %{MYSQL_DDL_PASS=123456}
-${MYSQL_DB}             %{MYSQL_DB=demo}
-${MYSQL_PORT}           %{MYSQL_PORT=3306}
-${MYSQL_CNF_FILE}       .cache/systemtests/.my.cnf
-${APP_CONFIG}           .cache/systemtests/config.yaml
+${SUITE_ID}             crud
 ${DDL_CREATE}           systemtests/data/create.sql
 ${DDL_DROP}             systemtests/data/drop.sql
 
@@ -36,17 +29,18 @@ ${DDL_DROP}             systemtests/data/drop.sql
 Setup
     [Documentation]         Setup this suite
     Builtin.Log             Setting up suite
+    Builtin.Set Suite Variable  ${APP_CONFIG}   .cache/systemtests/config-${SUITE_ID}.yaml
     Builtin.Log Variables
-    OperatingSystem.Remove Files     .cache/systemtests/*.log   .cache/systemtests/*.err    ${APP_CONFIG}
+    OperatingSystem.Remove Files     ${APP_CONFIG}
     Builtin.Log             Creating config
     ${dsn}                  Db2rest.Make DSN    ${MYSQL_APP_USER}    ${MYSQL_APP_PASS}     ${MYSQL_HOST}   ${MYSQL_DB}
-    ${config}               Db2rest.Create Config   demo    ${dsn}
-    Db2rest.Write Config    ${APP_CONFIG}  demo  ${dsn}
+    ${config}               Db2rest.Create Config   demo  ${dsn}
+    Db2rest.Write To Yaml   ${APP_CONFIG}   ${config}
     Db2rest.Init Session
     Builtin.Log             Starting server
     Process.Start Process   go run pkg/cmd/main.go --config ${APP_CONFIG}
     ...                     cwd=.    alias=Server   shell=True
-    ...                     stdout=.cache/systemtests/app.log  stderr=.cache/systemtests/app.err
+    ...                     stdout=.cache/systemtests/app-${SUITE_ID}.log  stderr=.cache/systemtests/app-${SUITE_ID}.err
     MySQL.Write Config      ${MYSQL_CNF_FILE}     ${MYSQL_HOST}   ${MYSQL_DDL_USER}     ${MYSQL_DDL_PASS}   ${MYSQL_DB}
     MySQL.Run client        ${MYSQL_CNF_FILE}     ${DDL_DROP}     drop
     MySQL.Run client        ${MYSQL_CNF_FILE}     ${DDL_CREATE}     create

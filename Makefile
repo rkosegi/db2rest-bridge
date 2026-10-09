@@ -73,6 +73,7 @@ prepare:
 	pip install pre-commit robotframework==7.4.1 robotframework-jsonlibrary==0.5 robotframework-requests==0.9.7
 
 it:
+	rm -f .cache/systemtests/*.log   .cache/systemtests/*.err
 	python3 -m robot --outputdir .cache/systemtests systemtests/misc-suite.robot systemtests/crud-suite.robot
 
 bump-patch-version:

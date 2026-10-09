@@ -27,6 +27,12 @@ Init Session
     ${session}          RequestsLibrary.Create Session   client     http://127.0.0.1:22001/api/v1   headers=${headers}
     RETURN              ${session}
 
+Wait For Server
+    [Documentation]     Check server version. This waits until server is available for 10 seconds at most
+    Builtin.Log         Checking server version
+    ${version}          Builtin.Wait Until Keyword Succeeds     10   1 sec   db2rest.Get Server Version
+    Builtin.Log         ${version}
+
 Make DSN
     [Documentation]     Builds a DSN from args
     [Arguments]         ${user}    ${pass}     ${host}   ${db}
@@ -45,8 +51,8 @@ Create Config
 Write To Yaml
     [Documentation]     Writes object to the YAML file
     [Arguments]         ${path}     ${dict}
-    ${str}              yaml.Dump    ${dict}    default_flow_style=False    sort_keys=True
-    Builtin.Create File     ${path}    ${str}
+    ${str}              Evaluate    yaml.safe_dump(${dict}, default_flow_style=False)    modules=yaml
+    OperatingSystem.Create File     ${path}    ${str}
 
 Write Config
     [Documentation]     Writes configuration to specified file
@@ -81,7 +87,6 @@ Merge Recursive
             Collections.Set To Dictionary    ${result}    ${key}=${d2['${key}']}
         END
     END
-
     RETURN    ${result}
 
 List Configured Backends
