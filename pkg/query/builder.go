@@ -19,7 +19,7 @@ package query
 type builder struct {
 	ords Orders
 	fe   FilterExpression
-	pg   page
+	pg   *page
 }
 
 func (b *builder) OrderBy(name string, asc bool) Builder {
@@ -27,8 +27,8 @@ func (b *builder) OrderBy(name string, asc bool) Builder {
 	return b
 }
 
-func (b *builder) Paging(offset int, size int) Builder {
-	b.pg.offset = uint64(offset)
+func (b *builder) Paging(offset uint64, size int) Builder {
+	b.pg.offset = offset
 	b.pg.size = size
 	return b
 }
@@ -42,9 +42,17 @@ func (b *builder) Build() Interface {
 	return &qryData{orders: b.ords, paging: b.pg, filter: b.fe}
 }
 
+func BuilderFrom(qry Interface) Builder {
+	return &builder{
+		ords: qry.(*qryData).orders,
+		pg:   qry.(*qryData).paging.(*page),
+		fe:   qry.(*qryData).filter,
+	}
+}
+
 func NewBuilder() Builder {
 	return &builder{
 		ords: Orders{},
-		pg:   page{offset: DefaultPageOffset, size: DefaultPageSize},
+		pg:   &page{offset: DefaultPageOffset, size: DefaultPageSize},
 	}
 }

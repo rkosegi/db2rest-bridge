@@ -21,14 +21,25 @@
         "dsn": {
           "type": "string"
         },
+        "entities": {
+          "additionalProperties": {
+            "$ref": "#/$defs/entityConfig"
+          },
+          "description": "Entity-level configurations."
+        },
         "id_map": {
           "additionalProperties": true,
+          "deprecated": true,
           "description": "Optional mapping from entity (table) name to ID column.\nIf not specified, then 'id' is assumed"
         },
         "max_idle_connections": {
           "type": "integer"
         },
         "max_open_connections": {
+          "type": "integer"
+        },
+        "pageSizeLimit": {
+          "description": "Limit for page size. When per-entity limit is not configured, then this value is used.",
           "type": "integer"
         },
         "queries": {
@@ -58,6 +69,10 @@
         "logging": {
           "$ref": "#/$defs/loggingConfig"
         },
+        "pageSizeLimit": {
+          "description": "Global default limit for page size.\nWhen neither per-entity, not per-backend limit is configured, then this value is applied.\nIf not specified, then value of 20 is assumed",
+          "type": "integer"
+        },
         "server": {
           "$ref": "https://raw.githubusercontent.com/rkosegi/go-http-commons/refs/heads/main/schemas/server.config.json"
         }
@@ -66,6 +81,18 @@
         "backends",
         "server"
       ]
+    },
+    "entityConfig": {
+      "properties": {
+        "idColumn": {
+          "description": "Name of ID column. If not specified, then 'id' is assumed",
+          "type": "string"
+        },
+        "pageSizeLimit": {
+          "description": "Limit for page size",
+          "type": "integer"
+        }
+      }
     },
     "loggingConfig": {
       "additionalProperties": false,

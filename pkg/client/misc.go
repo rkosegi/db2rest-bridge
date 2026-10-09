@@ -73,7 +73,7 @@ func LoadAllInBatch[T any](ctx context.Context, c GenericInterface[T], fe query.
 	loaded := 0
 	var results []*T
 	for {
-		qb := query.NewBuilder().Filter(fe).Paging(loaded, batchSize)
+		qb := query.NewBuilder().Filter(fe).Paging(uint64(loaded), batchSize)
 		for _, order := range orders {
 			qb.OrderBy(order.Name(), order.Asc())
 		}

@@ -40,6 +40,7 @@ Setup
     OperatingSystem.Remove Files     .cache/systemtests/*.log   .cache/systemtests/*.err    ${APP_CONFIG}
     Builtin.Log             Creating config
     ${dsn}                  Db2rest.Make DSN    ${MYSQL_APP_USER}    ${MYSQL_APP_PASS}     ${MYSQL_HOST}   ${MYSQL_DB}
+    ${config}               Db2rest.Create Config   demo    ${dsn}
     Db2rest.Write Config    ${APP_CONFIG}  demo  ${dsn}
     Db2rest.Init Session
     Builtin.Log             Starting server

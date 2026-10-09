@@ -46,7 +46,7 @@ type Interface interface {
 
 type Builder interface {
 	OrderBy(string, bool) Builder
-	Paging(int, int) Builder
+	Paging(offset uint64, size int) Builder
 	Filter(FilterExpression) Builder
 	Build() Interface
 }
