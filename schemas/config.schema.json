@@ -38,7 +38,7 @@
         "max_open_connections": {
           "type": "integer"
         },
-        "pageSizeLimit": {
+        "page_size_limit": {
           "description": "Limit for page size. When per-entity limit is not configured, then this value is used.",
           "type": "integer"
         },
@@ -93,7 +93,7 @@
         "logging": {
           "$ref": "#/$defs/loggingConfig"
         },
-        "pageSizeLimit": {
+        "page_size_limit": {
           "description": "Global default limit for page size.\nWhen neither per-entity, not per-backend limit is configured, then this value is applied.\nIf not specified, then value of 20 is assumed",
           "type": "integer"
         },
@@ -112,7 +112,7 @@
           "description": "Name of ID column. If not specified, then 'id' is assumed",
           "type": "string"
         },
-        "pageSizeLimit": {
+        "page_size_limit": {
           "description": "Limit for page size",
           "type": "integer"
         }
