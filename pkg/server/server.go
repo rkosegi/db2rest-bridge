@@ -92,7 +92,7 @@ var (
 )
 
 type restServer struct {
-	cfg     *types.Config
+	cfg     *api.Config
 	server  *http.Server
 	crudMap crud.NameToCrudMap
 	l       *slog.Logger

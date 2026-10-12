@@ -41,7 +41,7 @@ var (
 )
 
 type impl struct {
-	config  *types.BackendConfig
+	config  *api.BackendConfig
 	l       *slog.Logger
 	mdCache *ttlcache.Cache[string, map[string]*sql.ColumnType]
 }
@@ -54,7 +54,7 @@ func WithLogger(l *slog.Logger) Opt {
 	}
 }
 
-func newImpl(be *types.BackendConfig, opts ...Opt) Interface {
+func newImpl(be *api.BackendConfig, opts ...Opt) Interface {
 	i := &impl{config: be}
 	for _, opt := range append([]Opt{
 		WithLogger(slog.Default()),
@@ -171,7 +171,7 @@ func (be *impl) QueryNamed(ctx context.Context, name string, qry query.Interface
 	}
 	var err error
 	items := make([]api.UntypedDto, 0)
-	savedQry, ok := be.config.Queries[name]
+	savedQry, ok := (*be.config.Queries)[name]
 	if !ok {
 		return nil, types.NewErrorWithStatus("no such query: "+name, http.StatusNotFound)
 	}

@@ -21,8 +21,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/server"
-	"github.com/rkosegi/db2rest-bridge/pkg/types"
 	xlog "github.com/rkosegi/slog-config"
 	"github.com/rkosegi/yaml-toolkit/fluent"
 	"github.com/spf13/cobra"
@@ -45,7 +45,7 @@ func New() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
-			cfg := fluent.NewConfigHelper[types.Config]().Load(cfgFile).Result()
+			cfg := fluent.NewConfigHelper[api.Config]().Load(cfgFile).Result()
 			if err = cfg.CheckAndNormalize(); err != nil {
 				return err
 			}

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -16,12 +17,29 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gorilla/mux"
 	"github.com/oapi-codegen/runtime"
 	externalRef0 "github.com/rkosegi/go-http-commons/api"
+	ccfg "github.com/rkosegi/go-http-commons/config"
 )
+
+// Defines values for BackendConfigDriver.
+const (
+	Mysql BackendConfigDriver = "mysql"
+)
+
+// Valid indicates whether the value is a known member of the BackendConfigDriver enum.
+func (e BackendConfigDriver) Valid() bool {
+	switch e {
+	case Mysql:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for BulkUpdateMode.
 const (
@@ -47,7 +65,60 @@ func (e BulkUpdateMode) Valid() bool {
 	}
 }
 
+// BackendConfig defines model for BackendConfig.
+type BackendConfig struct {
+	ConnMaxIdleTime *time.Duration `json:"conn_max_idle_time,omitempty" yaml:"conn_max_idle_time,omitempty"`
+	ConnMaxLifetime *time.Duration `json:"conn_max_lifetime,omitempty" yaml:"conn_max_lifetime,omitempty"`
+
+	// Create Flag to enable create operations. When omitted, then false (disabled) is assumed
+	Create *bool   `json:"create,omitempty" yaml:"create,omitempty"`
+	Db     *sql.DB `json:"-" yaml:"db,omitempty"`
+
+	// Delete Flag to enable delete operations. When omitted, then false (disabled) is assumed
+	Delete *bool `json:"delete,omitempty" yaml:"delete,omitempty"`
+
+	// Driver Type of driver to use
+	Driver *BackendConfigDriver `json:"driver,omitempty" yaml:"driver,omitempty"`
+
+	// Dsn Data source specification.
+	// Can contain credentials
+	Dsn string `json:"dsn" yaml:"dsn"`
+
+	// Entities Entity-level configurations.
+	Entities *map[string]*EntityConfig `json:"entities,omitempty" yaml:"entities,omitempty"`
+
+	// IdMap Optional mapping from entity (table) name to ID column.
+	// If not specified, then 'id' is assumed
+	// Deprecated: Use entities map
+	IdMap *map[string]string `json:"id_map,omitempty" yaml:"id_map,omitempty"`
+
+	// InitQueries SQL queries to be executed at start. Be careful here.
+	InitQueries *[]string `json:"init_queries,omitempty" yaml:"init_queries,omitempty"`
+
+	// MaxIdleConnections Sets the maximum number of connections in the idle connection pool.
+	MaxIdleConnections *int `json:"max_idle_connections,omitempty" yaml:"max_idle_connections,omitempty"`
+
+	// MaxOpenConnections Sets the maximum number of open connections to the database.
+	MaxOpenConnections *int `json:"max_open_connections,omitempty" yaml:"max_open_connections,omitempty"`
+
+	// PageSizeLimit Limit for page size. When per-entity limit is not configured, then this value is used.
+	PageSizeLimit *int `json:"page_size_limit,omitempty" yaml:"page_size_limit,omitempty"`
+
+	// Queries Named queries that can be executed by their name
+	Queries *map[string]string `json:"queries,omitempty" yaml:"queries,omitempty"`
+
+	// Read Flag to enable read operations. When omitted, then true (enabled) is assumed
+	Read *bool `json:"read,omitempty" yaml:"read,omitempty"`
+
+	// Update Flag to enable update operations. When omitted, then false (disabled) is assumed
+	Update *bool `json:"update,omitempty" yaml:"update,omitempty"`
+}
+
+// BackendConfigDriver Type of driver to use
+type BackendConfigDriver string
+
 // BulkUpdateMode Mode of update:
+//
 //   - `INSERT` - Objects are inserted. Conflicts will cause an error.
 //   - `REPLACE` - Objects are removed prior to creating if they exists.
 //     All primary keys must be present in request.
@@ -56,31 +127,105 @@ func (e BulkUpdateMode) Valid() bool {
 //   - `DELETE` - Objects are deleted. All primary keys must be present in request.
 type BulkUpdateMode string
 
-// BulkUpdateRequest defines model for BulkUpdateRequest.
+// BulkUpdateRequest Request object describing bulk operation
 type BulkUpdateRequest struct {
 	// Mode Mode of update:
+	//
 	//  * `INSERT` - Objects are inserted. Conflicts will cause an error.
 	//  * `REPLACE` - Objects are removed prior to creating if they exists.
 	//               All primary keys must be present in request.
 	//  * `UPDATE` - Objects are updated. All primary keys must be present in request.
 	//               Non-existent objects are ignored.
 	//  * `DELETE` - Objects are deleted. All primary keys must be present in request.
-	Mode BulkUpdateMode `json:"mode"`
+	Mode BulkUpdateMode `json:"mode" yaml:"mode"`
 
-	// Objects Actual data object to process
-	Objects []UntypedDto `json:"objects"`
+	// Objects Actual data objects to process
+	Objects []UntypedDto `json:"objects" yaml:"objects"`
+}
+
+// ClientProfile defines model for ClientProfile.
+type ClientProfile struct {
+	// Auth Authentication configuration. TBD
+	Auth *map[string]interface{} `json:"auth,omitempty" yaml:"auth,omitempty"`
+
+	// Url URL to the server API endpoint
+	Url string `json:"url" yaml:"url"`
+}
+
+// ClientProfileSpec defines model for ClientProfileSpec.
+type ClientProfileSpec struct {
+	// Auth Authentication configuration. TBD
+	Auth *map[string]interface{} `json:"auth,omitempty" yaml:"auth,omitempty"`
+
+	// Url URL to the server API endpoint
+	Url string `json:"url" yaml:"url"`
+}
+
+// ClientProfiles Map of client profiles
+type ClientProfiles map[string]ClientProfile
+
+// Config defines model for Config.
+type Config struct {
+	// ActiveClientProfile Name of active client profile
+	ActiveClientProfile *string                   `json:"active_client_profile,omitempty" yaml:"active_client_profile,omitempty"`
+	Backends            map[string]*BackendConfig `json:"backends" yaml:"backends"`
+
+	// ClientProfiles Map of client profiles
+	ClientProfiles *map[string]ClientProfile `json:"client_profiles,omitempty" yaml:"client_profiles,omitempty"`
+
+	// PageSizeLimit Global default limit for page size.
+	// When neither per-entity, not per-backend limit is configured, then this value is applied.
+	// If not specified, then value of 20 is assumed
+	PageSizeLimit *int `json:"page_size_limit,omitempty" yaml:"page_size_limit,omitempty"`
+
+	// Server Server configuration schema
+	Server ccfg.ServerConfig `json:"server" yaml:"server"`
+}
+
+// ConfigSpec defines model for ConfigSpec.
+type ConfigSpec struct {
+	Backends map[string]BackendConfig `json:"backends" yaml:"backends"`
+
+	// ClientProfiles Map of client profiles
+	ClientProfiles *ClientProfiles `json:"client_profiles,omitempty" yaml:"client_profiles,omitempty"`
+
+	// PageSizeLimit Global default limit for page size.
+	// When neither per-entity, not per-backend limit is configured, then this value is applied.
+	// If not specified, then value of 20 is assumed
+	PageSizeLimit *int `json:"page_size_limit,omitempty" yaml:"page_size_limit,omitempty"`
+
+	// Server Server configuration schema
+	Server map[string]interface{} `json:"server" yaml:"server"`
+}
+
+// EntityConfig defines model for EntityConfig.
+type EntityConfig struct {
+	// IdColumn Name of ID column. If not specified, then 'id' is assumed
+	IdColumn *string `json:"id_column,omitempty" yaml:"id_column,omitempty"`
+
+	// PageSizeLimit Limit for page size
+	PageSizeLimit *int `json:"page_size_limit,omitempty" yaml:"page_size_limit,omitempty"`
+}
+
+// EntityConfigSpec defines model for EntityConfigSpec.
+type EntityConfigSpec struct {
+	// IdColumn Name of ID column. If not specified, then 'id' is assumed
+	IdColumn *string `json:"id_column,omitempty" yaml:"id_column,omitempty"`
+
+	// PageSizeLimit Limit for page size
+	PageSizeLimit *int `json:"page_size_limit,omitempty" yaml:"page_size_limit,omitempty"`
 }
 
 // ErrorObject Generic object to convey error details
 type ErrorObject struct {
 	// Code Code related to error state
-	Code *int `json:"code,omitempty"`
+	Code *int `json:"code,omitempty" yaml:"code,omitempty"`
 
 	// Data Ad-hoc data associated with error
-	Data *map[string]interface{} `json:"data,omitempty"`
+	Data *map[string]interface{} `json:"data,omitempty" yaml:"data,omitempty"`
 
 	// Message Human readable message about error state
-	Message string `json:"message"`
+	Message string `json:"message" yaml:"message"`
 }
 
 // NameList List of names, such as backends or entities
@@ -88,13 +233,13 @@ type NameList = []string
 
 // PagedResult Paged list of items
 type PagedResult struct {
-	Data *[]UntypedDto `json:"data,omitempty"`
+	Data *[]UntypedDto `json:"data,omitempty" yaml:"data,omitempty"`
 
 	// Offset Offset of current page from the beginning
-	Offset *float32 `json:"offset,omitempty"`
+	Offset *float32 `json:"offset,omitempty" yaml:"offset,omitempty"`
 
 	// TotalCount Total number of items matching current filter
-	TotalCount *int `json:"total_count,omitempty"`
+	TotalCount *int `json:"total_count,omitempty" yaml:"total_count,omitempty"`
 }
 
 // UntypedDto Unstructured content, dictionary of string-to-any values.
@@ -115,28 +260,28 @@ type PageSize = int
 // QueryNamedParams defines parameters for QueryNamed.
 type QueryNamedParams struct {
 	// PageOffset Page offset
-	PageOffset *PageOffset `form:"page-offset,omitempty" json:"page-offset,omitempty"`
+	PageOffset *PageOffset `form:"page-offset,omitempty" json:"page-offset,omitempty" yaml:"page-offset,omitempty"`
 
 	// PageSize Page size. Actual value used on server is capped based on policy.
-	PageSize *PageSize `form:"page-size,omitempty" json:"page-size,omitempty"`
+	PageSize *PageSize `form:"page-size,omitempty" json:"page-size,omitempty" yaml:"page-size,omitempty"`
 
 	// Arg Additional arguments passed to query
-	Arg *[]string `form:"arg,omitempty" json:"arg,omitempty"`
+	Arg *[]string `form:"arg,omitempty" json:"arg,omitempty" yaml:"arg,omitempty"`
 }
 
 // ListItemsParams defines parameters for ListItems.
 type ListItemsParams struct {
 	// PageOffset Page offset
-	PageOffset *PageOffset `form:"page-offset,omitempty" json:"page-offset,omitempty"`
+	PageOffset *PageOffset `form:"page-offset,omitempty" json:"page-offset,omitempty" yaml:"page-offset,omitempty"`
 
 	// PageSize Page size. Actual value used on server is capped based on policy.
-	PageSize *PageSize `form:"page-size,omitempty" json:"page-size,omitempty"`
+	PageSize *PageSize `form:"page-size,omitempty" json:"page-size,omitempty" yaml:"page-size,omitempty"`
 
 	// Order List of order instructions in form of `key=direction`.
 	// Key represents entity field (column) and direction is one of `ASC` or `DESC`,
 	// for example `name=ASC` or `id=DESC`.
 	// Direction can be omitted, in such case `ASC` is assumed.
-	Order *[]string `form:"order[],omitempty" json:"order[],omitempty"`
+	Order *[]string `form:"order[],omitempty" json:"order[],omitempty" yaml:"order[],omitempty"`
 
 	// Filter Filter is JSON-encoded FilterExpression.
 	// Currently supported types are `simple`, `not` and `junction`.
@@ -153,7 +298,7 @@ type ListItemsParams struct {
 	// - `{"junction": {"op": "AND", "sub" : [{"simple": { "name": "age", "op": ">", "val" : 35}}, {"simple": { "name": "salary", "op": ">", "val" : 5000}}]}}`
 	//
 	//    is equivalent to SQL `(age>35) AND (salary > 5000)`
-	Filter *string `form:"filter,omitempty" json:"filter,omitempty"`
+	Filter *string `form:"filter,omitempty" json:"filter,omitempty" yaml:"filter,omitempty"`
 }
 
 // CreateItemJSONRequestBody defines body for CreateItem for application/json ContentType.
@@ -2891,17 +3036,11 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	r.HandleFunc(options.BaseURL+"/backends", wrapper.ListBackends).Methods(http.MethodGet)
-
-	r.HandleFunc(options.BaseURL+"/{backend}/entities", wrapper.ListEntities).Methods(http.MethodGet)
-
 	r.HandleFunc(options.BaseURL+"/{backend}/_query/{name}", wrapper.QueryNamed).Methods(http.MethodGet)
 
 	r.HandleFunc(options.BaseURL+"/{backend}/{entity}", wrapper.ListItems).Methods(http.MethodGet)
 
 	r.HandleFunc(options.BaseURL+"/{backend}/{entity}", wrapper.CreateItem).Methods(http.MethodPost)
-
-	r.HandleFunc(options.BaseURL+"/{backend}/{entity}/bulk", wrapper.BulkUpdate).Methods(http.MethodPost)
 
 	r.HandleFunc(options.BaseURL+"/{backend}/{entity}/{id}", wrapper.DeleteItemById).Methods(http.MethodDelete)
 
@@ -2910,6 +3049,12 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 	r.HandleFunc(options.BaseURL+"/{backend}/{entity}/{id}", wrapper.ExistsItemById).Methods(http.MethodHead)
 
 	r.HandleFunc(options.BaseURL+"/{backend}/{entity}/{id}", wrapper.UpdateItemById).Methods(http.MethodPut)
+
+	r.HandleFunc(options.BaseURL+"/{backend}/{entity}/bulk", wrapper.BulkUpdate).Methods(http.MethodPost)
+
+	r.HandleFunc(options.BaseURL+"/{backend}/entities", wrapper.ListEntities).Methods(http.MethodGet)
+
+	r.HandleFunc(options.BaseURL+"/backends", wrapper.ListBackends).Methods(http.MethodGet)
 
 	r.HandleFunc(options.BaseURL+"/version", wrapper.GetVersionInfo).Methods(http.MethodGet)
 
@@ -2921,51 +3066,72 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"vTblaevGcHtxs/73AA==",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

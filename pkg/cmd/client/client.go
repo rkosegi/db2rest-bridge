@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/rkosegi/db2rest-bridge/pkg/api"
 	"github.com/rkosegi/db2rest-bridge/pkg/client"
-	"github.com/rkosegi/db2rest-bridge/pkg/types"
 	"github.com/rkosegi/yaml-toolkit/fluent"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +30,7 @@ import (
 type cmdData struct {
 	profile    string
 	configFile string
-	lc         *types.Config
+	lc         *api.Config
 	entityName string
 	backend    string
 
@@ -64,12 +64,17 @@ func backendsCmd(cd *cmdData) *cobra.Command {
 			if len(cd.configFile) == 0 {
 				return errors.New("config file name is required (--config <config file>)")
 			}
-			cd.lc = fluent.NewConfigHelper[types.Config]().Load(cd.configFile).Result()
+			cd.lc = fluent.NewConfigHelper[api.Config]().Load(cd.configFile).Result()
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-
-			cl, err := client.NewApi(cd.lc.ClientProfiles[cd.lc.ActiveClientProfile].Url)
+			if cd.lc.ClientProfiles == nil {
+				return errors.New("no client profiles found in the config file")
+			}
+			if cd.lc.ActiveClientProfile == nil {
+				cd.lc.ActiveClientProfile = new("default")
+			}
+			cl, err := client.NewApi((*cd.lc.ClientProfiles)[*cd.lc.ActiveClientProfile].Url)
 			if err != nil {
 				return err
 			}
@@ -126,7 +131,7 @@ func New() *cobra.Command {
 			if len(cd.configFile) == 0 {
 				return errors.New("config file name is required (--config <config file>)")
 			}
-			cd.lc = fluent.NewConfigHelper[types.Config]().Load(cd.configFile).Result()
+			cd.lc = fluent.NewConfigHelper[api.Config]().Load(cd.configFile).Result()
 			return nil
 		},
 	}
