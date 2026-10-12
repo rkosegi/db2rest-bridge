@@ -1,0 +1,43 @@
+# Copyright 2026 Richard Kosegi
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/OAI/Overlay-Specification/refs/heads/main/schemas/v1.0/schema.yaml
+overlay: 1.0.0
+info:
+  title: Overlay
+  version: 0.0.0
+actions:
+  - target: $.components.schemas.Config.properties
+    update:
+      server:
+        x-go-type: ccfg.ServerConfig
+        x-go-type-import:
+          path: github.com/rkosegi/go-http-commons/config
+          name: ccfg
+      backends:
+        x-go-type: map[string]*BackendConfig
+      client_profiles:
+        x-go-type: map[string]ClientProfile
+  - target: $.components.schemas.BackendConfig.properties
+    update:
+      db:
+        x-go-type: sql.DB
+        x-go-name: db
+        x-go-json-ignore: true
+      conn_max_lifetime:
+        x-go-type: time.Duration
+      conn_max_idle_time:
+        x-go-type: time.Duration
+      entities:
+        x-go-type: map[string]*EntityConfig

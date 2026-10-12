@@ -77,6 +77,6 @@ func (m *NameToCrudMap) Close() error {
 	return errors.Join(errs...)
 }
 
-func New(be *types.BackendConfig, logger *slog.Logger) Interface {
+func New(be *api.BackendConfig, logger *slog.Logger) Interface {
 	return newImpl(be, WithLogger(logger))
 }

@@ -21,7 +21,6 @@ info:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
   version: v1.0.0
-
 servers:
   - url: '{protocol}://{host}:{port}/api/v1'
     variables:
@@ -156,7 +155,6 @@ paths:
           required: false
           schema:
             type: string
-
       responses:
         '200':
           description: List of items
@@ -266,7 +264,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorObject"
-
         '405':
           description: Update is not allowed.
       tags:
@@ -293,7 +290,6 @@ paths:
           description: Delete is not allowed.
       tags:
         - crud
-
   /version:
     get:
       description: Get system version info
@@ -308,7 +304,6 @@ paths:
                 $ref: "https://github.com/rkosegi/go-http-commons/releases/download/v0.0.4/api.types-spec.yaml#/components/schemas/SystemVersionInfo"
       tags:
         - info
-
 components:
   parameters:
     backend:
@@ -348,7 +343,6 @@ components:
         type: integer
         minimum: 1
         maximum: 1000
-
   schemas:
     BulkUpdateMode:
       type: string
@@ -359,6 +353,7 @@ components:
         - DELETE
       description: >
         Mode of update:
+
          * `INSERT` - Objects are inserted. Conflicts will cause an error.
          * `REPLACE` - Objects are removed prior to creating if they exists.
                       All primary keys must be present in request.
@@ -366,6 +361,7 @@ components:
                       Non-existent objects are ignored.
          * `DELETE` - Objects are deleted. All primary keys must be present in request.
     BulkUpdateRequest:
+      description: Request object describing bulk operation
       type: object
       required:
         - mode
@@ -374,7 +370,7 @@ components:
         mode:
           $ref: "#/components/schemas/BulkUpdateMode"
         objects:
-          description: Actual data object to process
+          description: Actual data objects to process
           type: array
           minItems: 1
           items:
@@ -402,7 +398,6 @@ components:
       description: Unstructured content, dictionary of string-to-any values.
       type: object
       additionalProperties: true
-
     ErrorObject:
       description: Generic object to convey error details
       properties:
@@ -418,3 +413,150 @@ components:
           additionalProperties: true
       required:
         - message
+    BackendConfig:
+      additionalProperties: false
+      properties:
+        conn_max_idle_time:
+          type: string
+        conn_max_lifetime:
+          type: string
+        create:
+          type: boolean
+          description: Flag to enable create operations. When omitted, then false (disabled) is assumed
+        delete:
+          type: boolean
+          description: Flag to enable delete operations. When omitted, then false (disabled) is assumed
+        driver:
+          type: string
+          description: Type of driver to use
+          enum:
+            - mysql
+        dsn:
+          type: string
+          description: |-
+            Data source specification.
+            Can contain credentials
+        entities:
+          additionalProperties:
+            $ref: '#/components/schemas/EntityConfig'
+          description: Entity-level configurations.
+        id_map:
+          additionalProperties:
+            type: string
+          deprecated: true
+          description: |-
+            Optional mapping from entity (table) name to ID column.
+            If not specified, then 'id' is assumed
+          x-deprecated-reason: Use entities map
+        max_idle_connections:
+          type: integer
+          description: Sets the maximum number of connections in the idle connection pool.
+        max_open_connections:
+          type: integer
+          description: Sets the maximum number of open connections to the database.
+        page_size_limit:
+          description: Limit for page size. When per-entity limit is not configured, then this value is used.
+          type: integer
+        queries:
+          additionalProperties:
+            type: string
+          description: Named queries that can be executed by their name
+        read:
+          type: boolean
+          description: Flag to enable read operations. When omitted, then true (enabled) is assumed
+        update:
+          type: boolean
+          description: Flag to enable update operations. When omitted, then false (disabled) is assumed
+        db:
+          x-go-type: '*sql.DB'
+          x-go-name: db
+        init_queries:
+          description: SQL queries to be executed at start. Be careful here.
+          type: array
+          items:
+            type: string
+      required:
+        - dsn
+    ClientProfileSpec:
+      properties:
+        auth:
+          additionalProperties: true
+          description: Authentication configuration. TBD
+        url:
+          description: URL to the server API endpoint
+          type: string
+      required:
+        - url
+    ClientProfiles:
+      additionalProperties:
+        $ref: '#/components/schemas/ClientProfile'
+      description: Map of client profiles
+    ConfigSpec:
+      type: object
+      additionalProperties: false
+      properties:
+        backends:
+          additionalProperties:
+            $ref: '#/components/schemas/BackendConfig'
+        client_profiles:
+          $ref: '#/components/schemas/ClientProfiles'
+        page_size_limit:
+          description: |-
+            Global default limit for page size.
+            When neither per-entity, not per-backend limit is configured, then this value is applied.
+            If not specified, then value of 20 is assumed
+          type: integer
+        server:
+          $ref: https://raw.githubusercontent.com/rkosegi/go-http-commons/refs/heads/main/schemas/server.config.json
+      required:
+        - backends
+        - server
+    EntityConfigSpec:
+      properties:
+        id_column:
+          description: Name of ID column. If not specified, then 'id' is assumed
+          type: string
+        page_size_limit:
+          description: Limit for page size
+          type: integer
+    Config:
+      type: object
+      additionalProperties: false
+      properties:
+        backends:
+          additionalProperties:
+            $ref: '#/components/schemas/BackendConfig'
+        client_profiles:
+          $ref: '#/components/schemas/ClientProfiles'
+        page_size_limit:
+          description: |-
+            Global default limit for page size.
+            When neither per-entity, not per-backend limit is configured, then this value is applied.
+            If not specified, then value of 20 is assumed
+          type: integer
+        server:
+          $ref: https://raw.githubusercontent.com/rkosegi/go-http-commons/refs/heads/main/schemas/server.config.json
+        active_client_profile:
+          description: Name of active client profile
+          type: string
+      required:
+        - backends
+        - server
+    EntityConfig:
+      properties:
+        id_column:
+          description: Name of ID column. If not specified, then 'id' is assumed
+          type: string
+        page_size_limit:
+          description: Limit for page size
+          type: integer
+    ClientProfile:
+      properties:
+        auth:
+          additionalProperties: true
+          description: Authentication configuration. TBD
+        url:
+          description: URL to the server API endpoint
+          type: string
+      required:
+        - url

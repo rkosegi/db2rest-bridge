@@ -1,5 +1,5 @@
 /*
-Copyright 2024 Richard Kosegi
+Copyright 2026 Richard Kosegi
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package api
 
 import (
 	"testing"
@@ -25,8 +25,8 @@ import (
 func TestNormalizeConfig(t *testing.T) {
 	var c *Config
 	t.Run("page size limit from be", func(t *testing.T) {
-		c = &Config{Backends: Backends{
-			"A": &BackendConfig{
+		c = &Config{Backends: map[string]*BackendConfig{
+			"A": {
 				PageSizeLimit: new(7),
 			},
 		}}
@@ -34,8 +34,8 @@ func TestNormalizeConfig(t *testing.T) {
 		assert.Equal(t, 7, c.Backends["A"].ApplyPageSizeLimit("x", 100))
 	})
 	t.Run("page size limit from global", func(t *testing.T) {
-		c = &Config{Backends: Backends{
-			"A": &BackendConfig{},
+		c = &Config{Backends: map[string]*BackendConfig{
+			"A": {},
 		}}
 		assert.NoError(t, c.CheckAndNormalize())
 		assert.Equal(t, 20, c.Backends["A"].ApplyPageSizeLimit("x", 200))
@@ -44,7 +44,7 @@ func TestNormalizeConfig(t *testing.T) {
 		c = &Config{Backends: Backends{
 			"A": &BackendConfig{
 				Entities: new(map[string]*EntityConfig{
-					"x": &EntityConfig{
+					"x": {
 						PageSizeLimit: new(7),
 					},
 				}),

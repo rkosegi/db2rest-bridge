@@ -64,7 +64,15 @@ lint:
 test:
 	go test $$(go list ./... | grep -v /api | grep -v /types) -coverprofile=coverage.out
 
-gen:
+jsonschema-to-openapi:
+	test -d .cache || mkdir .cache
+	yq '.$$defs | {"components": {"schemas": . }}' schemas/config.schema.json -oyaml > .cache/openapi-config-spec.yaml
+	sed -i 's#/$$defs/#/components/schemas/#g' .cache/openapi-config-spec.yaml
+	yq  eval-all '. as $$item ireduce ({}; . * $$item)' -i pkg/api/openapi.yaml .cache/openapi-config-spec.yaml -oyaml
+	yq 'del(.components.schemas.Config.properties.backends.patternProperties)' -i pkg/api/openapi.yaml
+	yq '.components.schemas.BulkUpdateMode.description |= sub("(?m)^\\s*\\n"; "")' -i pkg/api/openapi.yaml
+
+gen: jsonschema-to-openapi
 	go generate pkg/api/api.go
 
 prepare:
