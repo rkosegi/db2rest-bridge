@@ -67,17 +67,17 @@ func (rs *restServer) ListItems(w http.ResponseWriter, r *http.Request, backend 
 func (rs *restServer) CreateItem(w http.ResponseWriter, r *http.Request, backend string, entity string) {
 	rs.handleEntity(w, r, backend, entity, func(c crud.Interface, entity string, writer http.ResponseWriter, request *http.Request) {
 		var err error
-		body := make(api.UntypedDto)
-		if err = json.NewDecoder(request.Body).Decode(&body); err != nil {
-			rs.l.Error("can't decode body", "backend", backend, "entity", entity, "error", err)
+		input := make(api.UntypedDto)
+		if err = json.NewDecoder(request.Body).Decode(&input); err != nil {
+			rs.l.Error("can't decode input", "backend", backend, "entity", entity, "error", err)
 			out.SendWithStatus(writer, err, http.StatusBadRequest)
 			return
 		}
-		if body, err = c.Create(r.Context(), entity, body); err != nil {
+		if input, err = c.Create(r.Context(), entity, input); err != nil {
 			rs.l.Error("can't create item", "backend", backend, "entity", entity, "error", err)
 			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 		} else {
-			out.SendWithStatus(writer, body, http.StatusCreated)
+			out.SendWithStatus(writer, input, http.StatusCreated)
 		}
 	})
 }
@@ -123,8 +123,8 @@ func (rs *restServer) UpdateItemById(w http.ResponseWriter, r *http.Request, bac
 			err    error
 			exists bool
 		)
-		body := make(api.UntypedDto)
-		if err = json.NewDecoder(req.Body).Decode(&body); err != nil {
+		input := make(api.UntypedDto)
+		if err = json.NewDecoder(req.Body).Decode(&input); err != nil {
 			out.SendWithStatus(writer, err, http.StatusBadRequest)
 			return
 		}
@@ -138,11 +138,11 @@ func (rs *restServer) UpdateItemById(w http.ResponseWriter, r *http.Request, bac
 			}, http.StatusNotFound)
 			return
 		}
-		if body, err = c.Update(r.Context(), entity, id, body); err != nil {
+		if input, err = c.Update(r.Context(), entity, id, input); err != nil {
 			out.SendWithStatus(writer, err, http.StatusInternalServerError)
 			return
 		}
-		out.SendWithStatus(w, body, http.StatusAccepted)
+		out.SendWithStatus(w, input, http.StatusAccepted)
 	})
 }
 
@@ -159,24 +159,24 @@ func (rs *restServer) DeleteItemById(w http.ResponseWriter, r *http.Request, bac
 func (rs *restServer) BulkUpdate(w http.ResponseWriter, r *http.Request, backend api.Backend, entity api.Entity) {
 	rs.handleEntity(w, r, backend, entity, func(c crud.Interface, entity string, writer http.ResponseWriter, req *http.Request) {
 		var (
-			err  error
-			body api.BulkUpdateRequest
-			ids  []any
+			err   error
+			input api.BulkUpdateRequest
+			ids   []any
 		)
-		if err = json.NewDecoder(req.Body).Decode(&body); err != nil {
+		if err = json.NewDecoder(req.Body).Decode(&input); err != nil {
 			out.SendWithStatus(writer, err, http.StatusBadRequest)
 			return
 		}
 		idCol := rs.cfg.Backends[backend].IdColumn(entity)
-		switch body.Mode {
+		switch input.Mode {
 		case api.DELETE:
-			if ids, err = extractIds(body.Objects, idCol); err == nil {
+			if ids, err = extractIds(input.Objects, idCol); err == nil {
 				err = c.MultiDelete(r.Context(), entity, ids)
 			}
 		case api.UPDATE:
-			err = c.MultiUpdate(r.Context(), entity, body.Objects)
+			err = c.MultiUpdate(r.Context(), entity, input.Objects)
 		case api.REPLACE, api.INSERT:
-			err = c.MultiCreate(r.Context(), entity, body.Mode == api.REPLACE, body.Objects)
+			err = c.MultiCreate(r.Context(), entity, input.Mode == api.REPLACE, input.Objects)
 		}
 
 		if err != nil {
