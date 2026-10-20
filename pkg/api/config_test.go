@@ -51,7 +51,7 @@ func TestNormalizeConfig(t *testing.T) {
 			},
 		}}
 		assert.NoError(t, c.CheckAndNormalize())
-		assert.Equal(t, 7, c.Backends["A"].ApplyPageSizeLimit("x", 5))
+		assert.Equal(t, 1, c.Backends["A"].ApplyPageSizeLimit("x", 1))
 	})
 
 }

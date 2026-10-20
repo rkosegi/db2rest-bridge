@@ -55,8 +55,11 @@ func (be *BackendConfig) pageSizeLimitForEntity(ent string) *int {
 }
 
 func (be *BackendConfig) ApplyPageSizeLimit(ent string, current int) int {
-	if limit := be.pageSizeLimitForEntity(ent); limit != nil {
-		return *limit
+	var limit *int
+	if limit = be.pageSizeLimitForEntity(ent); limit != nil {
+		if *limit < current {
+			return *limit
+		}
 	}
 	return current
 }

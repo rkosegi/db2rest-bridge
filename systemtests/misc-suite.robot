@@ -64,8 +64,18 @@ Teardown
 
 *** Test Cases ***
 
-Verify Page Size Limit Apply For Entity Override
+Verify Page Size Limit Does Not Apply When Unspecified By Caller
     ${items}                List Simple     demo    country
+    ${size}                 Builtin.Get Length    ${items['data']}
+    Builtin.Should Be Equal As Integers      ${size}   20
+
+Verify Page Size Limit Apply For Entity Override When Overridden
+    ${items}                Db2rest.List Items With Predicate     demo    country  name    %   LIKE    0   25
+    ${size}                 Builtin.Get Length    ${items['data']}
+    Builtin.Should Be Equal As Integers      ${size}   25
+
+Verify Page Size Limit Not Exceeded For Entity
+    ${items}                Db2rest.List Items With Predicate     demo    country  name    %   LIKE    0   50
     ${size}                 Builtin.Get Length    ${items['data']}
     Builtin.Should Be Equal As Integers      ${size}   25
 
@@ -74,3 +84,9 @@ Verify Page Size Limit Apply For Backend Override
     ${items}                List Simple     demo    city
     ${size}                 Builtin.Get Length    ${items['data']}
     Builtin.Should Be Equal As Integers      ${size}   10
+
+Verify User Supplied Limit Takes Over
+    [Documentation]
+    ${items}                Db2rest.List Items With Predicate     demo    city  name    %   LIKE    0   1
+    ${size}                 Builtin.Get Length    ${items['data']}
+    Builtin.Should Be Equal As Integers      ${size}   1
