@@ -17,6 +17,7 @@ FROM golang:1.27 AS builder
 WORKDIR /build
 COPY . /build
 
+RUN go install github.com/mikefarah/yq/v4@latest
 RUN make build-local
 
 FROM cgr.dev/chainguard/static:latest
