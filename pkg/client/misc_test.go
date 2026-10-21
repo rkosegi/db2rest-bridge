@@ -17,11 +17,13 @@ limitations under the License.
 package client
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/rkosegi/db2rest-bridge/pkg/query"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -57,4 +59,31 @@ func TestEnsureResponseCode(t *testing.T) {
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader("Not found")),
 	}, http.StatusOK, nil))
+}
+
+func TestLoad(t *testing.T) {
+	c := NewInMemory[string](func(s string, a *string) bool {
+		return true
+	}, func() []*string {
+		var out []*string
+		for i := range 35 {
+			out = append(out, new(fmt.Sprintf("%d", i)))
+		}
+		return out
+	}())
+	t.Run("All", func(t *testing.T) {
+		res, err := LoadAll[string](t.Context(), c, nil, query.OrderBy("id", true))
+		assert.NoError(t, err)
+		assert.Len(t, res, 35)
+	})
+	t.Run("AllInBatch", func(t *testing.T) {
+		res, err := LoadAllInBatch[string](t.Context(), c, nil, 20, query.OrderBy("id", false))
+		assert.NoError(t, err)
+		assert.Len(t, res, 35)
+	})
+	t.Run("AllInBatchWithCap", func(t *testing.T) {
+		res, err := LoadAllInBatchWithCap[string](t.Context(), c, nil, 10, 33)
+		assert.NoError(t, err)
+		assert.Len(t, res, 33)
+	})
 }

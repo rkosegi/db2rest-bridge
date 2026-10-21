@@ -70,7 +70,12 @@ func LoadAll[T any](ctx context.Context, c GenericInterface[T], fe query.FilterE
 }
 
 func LoadAllInBatch[T any](ctx context.Context, c GenericInterface[T], fe query.FilterExpression, batchSize int, orders ...query.Order) ([]*T, error) {
+	return LoadAllInBatchWithCap(ctx, c, fe, batchSize, -1, orders...)
+}
+
+func LoadAllInBatchWithCap[T any](ctx context.Context, c GenericInterface[T], fe query.FilterExpression, batchSize int, cap int, orders ...query.Order) ([]*T, error) {
 	loaded := 0
+	remaining := 0
 	var results []*T
 	for {
 		qb := query.NewBuilder().Filter(fe).Paging(uint64(loaded), batchSize)
@@ -81,8 +86,19 @@ func LoadAllInBatch[T any](ctx context.Context, c GenericInterface[T], fe query.
 		if err != nil {
 			return nil, err
 		}
+
 		loaded += len(rows)
 		results = append(results, rows...)
+		remaining = total - loaded
+		if remaining < batchSize {
+			batchSize = remaining
+		}
+
+		if cap > 0 && loaded >= cap {
+			// apply cap
+			results = results[:cap]
+			return results, nil
+		}
 		if loaded == total {
 			return results, nil
 		}

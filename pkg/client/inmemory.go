@@ -70,8 +70,9 @@ func (i *imCrud[T]) List(_ context.Context, q query.Interface) ([]*T, int, error
 		return FilterExpressionAsPredicate[T](q.Filter(), item)
 	})
 	// TODO: how about ordering?
+	count := len(out)
 	out = ApplyPaging[T](out, q.Paging())
-	return out, len(out), nil
+	return out, count, nil
 }
 
 func (i *imCrud[T]) Create(_ context.Context, t *T) (*T, error) {
