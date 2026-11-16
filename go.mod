@@ -28,7 +28,7 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.4.1
 	github.com/oapi-codegen/runtime v1.9.0
 	github.com/prometheus/client_golang v1.25.0
-	github.com/prometheus/common v0.73.1
+	github.com/prometheus/common v0.74.0
 	github.com/rkosegi/go-http-commons v0.0.4
 	github.com/rkosegi/slog-config v0.0.2-0.20261002141600-48ddb45105b6
 	github.com/rkosegi/yaml-toolkit v1.0.69
@@ -50,7 +50,7 @@ require (
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oapi-codegen/oapi-codegen/v2 v2.8.0 // indirect
-	github.com/pandatix/go-abnf v0.5.3 // indirect
+	github.com/pandatix/go-abnf v0.5.5 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
