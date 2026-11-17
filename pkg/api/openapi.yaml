@@ -491,26 +491,6 @@ components:
       additionalProperties:
         $ref: '#/components/schemas/ClientProfile'
       description: Map of client profiles
-    ConfigSpec:
-      type: object
-      additionalProperties: false
-      properties:
-        backends:
-          additionalProperties:
-            $ref: '#/components/schemas/BackendConfig'
-        client_profiles:
-          $ref: '#/components/schemas/ClientProfiles'
-        page_size_limit:
-          description: |-
-            Global default limit for page size.
-            When neither per-entity, not per-backend limit is configured, then this value is applied.
-            If not specified, then value of 20 is assumed
-          type: integer
-        server:
-          $ref: https://raw.githubusercontent.com/rkosegi/go-http-commons/refs/heads/main/schemas/server.config.json
-      required:
-        - backends
-        - server
     EntityConfigSpec:
       properties:
         id_column:
